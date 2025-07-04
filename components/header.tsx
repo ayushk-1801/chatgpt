@@ -111,7 +111,7 @@ function CustomUserProfile() {
 
 export function Header() {
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 flex items-center justify-between px-4 py-3 bg-background dark:bg-[#212121] text-foreground border-b border-border">
+    <header className="flex items-center justify-between px-4 py-3 bg-background dark:bg-[#212121] text-foreground border-b border-border">
       <TooltipProvider delayDuration={100}>
         {/* Left side - ChatGPT with dropdown */}
         <div className="flex items-center space-x-2">
