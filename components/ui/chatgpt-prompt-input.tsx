@@ -95,7 +95,7 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
         <div className="mt-0.5 p-1 pt-0">
           <TooltipProvider delayDuration={100}>
             <div className="flex items-center gap-2">
-              <Tooltip> <TooltipTrigger asChild><button type="button" onClick={handlePlusClick} className="flex h-8 w-8 items-center justify-center rounded-full text-foreground dark:text-white transition-colors hover:bg-accent dark:hover:bg-[#515151] focus-visible:outline-none"><PlusIcon className="h-6 w-6" /><span className="sr-only">Attach image</span></button></TooltipTrigger> <TooltipContent side="bottom" showArrow={true}><p>Attach image</p></TooltipContent> </Tooltip>
+              <Tooltip> <TooltipTrigger asChild><button type="button" onClick={handlePlusClick} className="flex h-8 w-8 items-center justify-center rounded-full text-foreground dark:text-white transition-colors hover:bg-accent dark:hover:bg-[#515151] focus-visible:outline-none"><PlusIcon className="h-6 w-6" /><span className="sr-only">Attach image</span></button></TooltipTrigger> <TooltipContent side="bottom"><p>Attach image</p></TooltipContent> </Tooltip>
               
               <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
                 <Tooltip>
@@ -107,7 +107,7 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
                       </button>
                     </PopoverTrigger>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom" showArrow={true}><p>Explore Tools</p></TooltipContent>
+                  <TooltipContent side="bottom"><p>Explore Tools</p></TooltipContent>
                 </Tooltip>
                 <PopoverContent side="bottom" align="start">
                   <div className="flex flex-col gap-1">
@@ -136,7 +136,7 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
                       <span className="sr-only">Record voice</span>
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom" showArrow={true}><p>Record voice</p></TooltipContent>
+                  <TooltipContent side="bottom"><p>Record voice</p></TooltipContent>
                 </Tooltip>
 
                 <Tooltip>
@@ -146,7 +146,7 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
                       <span className="sr-only">Send message</span>
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent side="bottom" showArrow={true}><p>Send</p></TooltipContent>
+                  <TooltipContent side="bottom"><p>Send</p></TooltipContent>
                 </Tooltip>
               </div>
             </div>
