@@ -2,6 +2,7 @@
 
 import { useChat } from "@ai-sdk/react";
 import { PromptBox } from "@/components/ui/chatgpt-prompt-input";
+import { MessageFormatter } from "@/components/ui/message-formatter";
 import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import { Copy, ThumbsUp, ThumbsDown, Volume2, Edit, RefreshCw, Download } from "lucide-react";
@@ -12,6 +13,7 @@ interface DatabaseMessage {
   role: 'user' | 'assistant';
   content: string;
   createdAt: string;
+  model?: string;
 }
 
 export default function ChatPage() {
@@ -34,13 +36,60 @@ export default function ChatPage() {
     },
   });
 
+  // --- Chat message cache utility ---
+  type ChatMessage = typeof messages extends Array<infer T> ? T : never;
+  const chatMemoryCache: Record<string, ChatMessage[]> = {};
+
+  function getCachedMessages(slug: string): ChatMessage[] | null {
+    // Check in-memory first
+    if (chatMemoryCache[slug]) return chatMemoryCache[slug];
+    // Then check localStorage
+    const key = `chat_messages_${slug}`;
+    const raw = typeof window !== 'undefined' ? localStorage.getItem(key) : null;
+    if (raw) {
+      try {
+        const parsed: ChatMessage[] = JSON.parse(raw);
+        // Convert createdAt back to Date if present
+        const parsedWithDates = parsed.map((msg: ChatMessage) => ({ ...msg, createdAt: msg.createdAt ? new Date(msg.createdAt) : undefined }));
+        chatMemoryCache[slug] = parsedWithDates;
+        return parsedWithDates;
+      } catch {}
+    }
+    return null;
+  }
+
+  function setCachedMessages(slug: string, messages: ChatMessage[]) {
+    chatMemoryCache[slug] = messages;
+    if (typeof window !== 'undefined') {
+      // Convert Date to string for storage if present
+      const toStore = messages.map(msg => ({
+        ...msg,
+        createdAt: msg.createdAt
+          ? (msg.createdAt instanceof Date
+              ? msg.createdAt.toISOString()
+              : msg.createdAt)
+          : undefined
+      }));
+      localStorage.setItem(`chat_messages_${slug}` , JSON.stringify(toStore));
+    }
+  }
+  // --- End cache utility ---
+
   const [isTyping, setIsTyping] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   // Load existing messages when the page loads
   useEffect(() => {
+    let didCancel = false;
     const loadChatHistory = async () => {
+      // Try cache first
+      const cached = getCachedMessages(slug);
+      if (cached && cached.length > 0) {
+        setMessages(cached);
+        setIsLoadingHistory(false);
+        return;
+      }
       try {
         const response = await fetch(`/api/chats/${slug}`);
         if (response.ok) {
@@ -51,17 +100,21 @@ export default function ChatPage() {
             role: msg.role,
             content: msg.content,
             createdAt: new Date(msg.createdAt),
+            model: msg.model,
           }));
-          setMessages(uiMessages);
+          if (!didCancel) {
+            setMessages(uiMessages);
+            setCachedMessages(slug, uiMessages);
+          }
         }
       } catch (error) {
         console.error('Error loading chat history:', error);
       } finally {
-        setIsLoadingHistory(false);
+        if (!didCancel) setIsLoadingHistory(false);
       }
     };
-
     loadChatHistory();
+    return () => { didCancel = true; };
   }, [slug, setMessages]);
 
   // Auto-scroll to bottom when new messages arrive
@@ -89,6 +142,13 @@ export default function ChatPage() {
     }
   }, [messages.length, setInput, handleSubmit, isLoadingHistory]);
 
+  // Update cache whenever messages change (and not loading history)
+  useEffect(() => {
+    if (!isLoadingHistory && messages.length > 0) {
+      setCachedMessages(slug, messages);
+    }
+  }, [messages, isLoadingHistory, slug]);
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
@@ -100,7 +160,7 @@ export default function ChatPage() {
 
   return (
     <div className="flex h-screen bg-[#212121] text-white overflow-hidden">
-      <div className="flex-1 flex flex-col max-w-4xl mx-auto w-full relative">
+      <div className="flex-1 flex flex-col w-full mx-auto w-full relative">
         {/* Messages Area - Scrollable with fixed height */}
         <div className="flex-1 overflow-hidden">
           <div
@@ -112,7 +172,7 @@ export default function ChatPage() {
             }}
           >
             <div
-              className="max-w-3xl mx-auto py-4 space-y-6 pb-32"
+              className="max-w-3xl mx-auto py-4 space-y-6 pb-32 mb-20"
               style={{
                 scrollbarWidth: "none",
                 msOverflowStyle: "none",
@@ -120,8 +180,6 @@ export default function ChatPage() {
             >
               {isLoadingHistory ? (
                 <div className="text-center py-8">
-                  <div className="w-6 h-6 bg-gray-500 rounded-full animate-pulse mx-auto"></div>
-                  <p className="text-gray-400 mt-2">Loading chat history...</p>
                 </div>
               ) : messages.length === 0 ? (
                 <div className="text-center py-8"></div>
@@ -147,19 +205,20 @@ export default function ChatPage() {
                           <div
                             className={`${
                               message.role === "user"
-                                ? "px-4 bg-neutral-700 text-white"
+                                ? "px-4 bg-neutral-700/50 text-white"
                                 : "text-gray-100"
                             } rounded-4xl  py-3`}
                           >
-                            <div className="whitespace-pre-wrap leading-relaxed">
-                              {message.content}
-                            </div>
+                            <MessageFormatter 
+                              content={message.content}
+                              className="leading-relaxed"
+                            />
                           </div>
                           
                           {/* Action buttons for assistant messages */}
                           {message.role === "assistant" && (
                             <TooltipProvider delayDuration={100}>
-                              <div className="flex items-center gap-1">
+                              <div className="flex items-center gap-0.5">
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <button

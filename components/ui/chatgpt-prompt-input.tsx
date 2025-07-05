@@ -61,6 +61,17 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
     React.useImperativeHandle(ref, () => internalTextareaRef.current!, []);
     React.useLayoutEffect(() => { const textarea = internalTextareaRef.current; if (textarea) { textarea.style.height = "auto"; const newHeight = Math.min(textarea.scrollHeight, 200); textarea.style.height = `${newHeight}px`; } }, [value]);
     
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+        e.preventDefault();
+        const form = e.currentTarget.form;
+        if (form) {
+          const submitter = form.querySelector('button[type="submit"]') as (HTMLButtonElement | null)
+          form.requestSubmit(submitter);
+        }
+      }
+    };
+
     const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => { 
       if (!isControlled) {
         setInternalValue(e.target.value);
@@ -86,6 +97,7 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
           rows={1} 
           value={value} 
           onChange={handleInputChange} 
+          onKeyDown={handleKeyDown}
           placeholder="Ask Anything" 
           className="custom-scrollbar w-full resize-none border-0 bg-transparent p-3 text-foreground dark:text-white placeholder:text-muted-foreground dark:placeholder:text-gray-300 focus:ring-0 focus-visible:outline-none min-h-12" 
           name={name}

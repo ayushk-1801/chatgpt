@@ -48,9 +48,11 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    const modelIdentifier = 'gpt-4o';
+
     // Generate AI response
     const result = streamText({
-      model: openai('gpt-4o'),
+      model: openai(modelIdentifier),
       system: 'You are a helpful assistant. Provide clear, concise, and accurate responses.',
       messages: convertToCoreMessages(messages),
       onFinish: async (result) => {
@@ -59,6 +61,7 @@ export async function POST(req: NextRequest) {
           chatId: chat._id,
           role: 'assistant',
           content: result.text,
+          model: modelIdentifier,
         });
         
         // Update chat's updatedAt timestamp
