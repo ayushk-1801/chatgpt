@@ -44,7 +44,7 @@ function CustomUserProfile() {
         <Button
           variant="ghost"
           size="icon"
-          className="w-7 h-7 rounded-full hover:opacity-80 transition-opacity"
+          className="w-6 h-6 rounded-full hover:opacity-80 transition-opacity"
         >
           {user.imageUrl ? (
             <img
@@ -111,7 +111,7 @@ function CustomUserProfile() {
 
 export function Header() {
   return (
-    <header className="flex items-center justify-between px-4 py-3 bg-background dark:bg-[#212121] text-foreground">
+    <header className="flex items-center justify-between px-3 py-2 bg-background dark:bg-[#212121] text-foreground">
       <TooltipProvider delayDuration={100}>
         {/* Left side - ChatGPT with dropdown */}
         <div className="flex items-center space-x-2">
@@ -119,10 +119,10 @@ export function Header() {
             <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
-                className="flex items-center space-x-1 hover:bg-gray-100 dark:hover:bg-[#515151] px-2 py-1 rounded-lg transition-colors"
+                className="flex items-center space-x-0 hover:bg-gray-100 dark:hover:bg-[#515151] px-2 py-1 rounded-lg transition-colors"
               >
                 <span className="text-lg font-medium">ChatGPT</span>
-                <ChevronDown className="w-4 h-4" />
+                <ChevronDown className="w-4 h-4 text-muted-foreground" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent

@@ -72,14 +72,14 @@ export function AppSidebar() {
     <Sidebar
       variant="sidebar"
       collapsible="icon"
-      className="border-r-0 bg-neutral-900 text-white"
+      className="border-none bg-neutral-900 text-white"
     >
-      <SidebarHeader className="border-b border-neutral-800">
+      <SidebarHeader className="">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Image src="/logo.svg" alt="logo" width={24} height={24} className="text-white"/>
+            <Image src="/logo.svg" alt="logo" width={24} height={24} className="text-white dark:invert" />
           </div>
-          <SidebarTrigger />
+          <SidebarTrigger className="text-muted-foreground hover:text-white" />
         </div>
       </SidebarHeader>
 
@@ -147,7 +147,7 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-neutral-800">
+      <SidebarFooter className="border-neutral-800">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton

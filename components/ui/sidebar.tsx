@@ -3,7 +3,7 @@
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { cva, VariantProps } from "class-variance-authority"
-import { PanelLeftIcon } from "lucide-react"
+import Image from "next/image"
 
 import { useIsMobile } from "@/hooks/use-mobile"
 import { cn } from "@/lib/utils"
@@ -258,23 +258,48 @@ function SidebarTrigger({
   onClick,
   ...props
 }: React.ComponentProps<typeof Button>) {
-  const { toggleSidebar } = useSidebar()
+  const { toggleSidebar, isMobile } = useSidebar()
+
+  if (isMobile) {
+    return (
+      <div
+        data-slot="trigger"
+        className={cn("absolute right-4 top-3", className)}
+        onClick={() => {
+          toggleSidebar()
+        }}
+        {...(props as React.ComponentProps<"div">)}
+      >
+        <Image
+          src="/sidebar.svg"
+          alt="sidebar"
+          width={20}
+          height={20}
+          className="shrink-0 transition-transform duration-200 group-data-[state=expanded]/sidebar-wrapper:rotate-180 dark:invert"
+        />
+      </div>
+    )
+  }
 
   return (
     <Button
-      data-sidebar="trigger"
-      data-slot="sidebar-trigger"
+      data-slot="trigger"
       variant="ghost"
       size="icon"
-      className={cn("size-7", className)}
-      onClick={(event) => {
-        onClick?.(event)
+      className={cn("group/trigger size-8 rounded-lg", className)}
+      onClick={(e) => {
         toggleSidebar()
+        onClick?.(e)
       }}
       {...props}
     >
-      <PanelLeftIcon />
-      <span className="sr-only">Toggle Sidebar</span>
+      <Image
+        src="/sidebar.svg"
+        alt="sidebar"
+        width={20}
+        height={20}
+        className="shrink-0 transition-transform duration-200 group-data-[state=expanded]/sidebar-wrapper:rotate-180 dark:invert"
+      />
     </Button>
   )
 }
