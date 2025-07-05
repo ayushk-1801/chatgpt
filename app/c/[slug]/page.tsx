@@ -159,7 +159,7 @@ export default function ChatPage() {
                           {/* Action buttons for assistant messages */}
                           {message.role === "assistant" && (
                             <TooltipProvider delayDuration={100}>
-                              <div className="flex items-center gap-1 mt-2">
+                              <div className="flex items-center gap-1">
                                 <Tooltip>
                                   <TooltipTrigger asChild>
                                     <button

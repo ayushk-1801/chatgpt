@@ -9,13 +9,8 @@ export default function Home() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const generateChatId = () => {
-    // Generate a random chat ID similar to ChatGPT's format
-    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    let result = '';
-    for (let i = 0; i < 12; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
+    // Generate a UUID for the chat ID
+    return crypto.randomUUID();
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
