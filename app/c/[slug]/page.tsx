@@ -27,8 +27,8 @@ export default function ChatPage() {
     handleSubmit,
     isLoading,
     error,
-    setInput,
     setMessages,
+    append,
   } = useChat({
     id: slug, // Use slug as chat ID for persistence
     body: {
@@ -128,19 +128,15 @@ export default function ChatPage() {
   useEffect(() => {
     const initialMessage = sessionStorage.getItem("initialMessage");
     if (initialMessage && messages.length === 0 && !isLoadingHistory) {
-      setInput(initialMessage);
       sessionStorage.removeItem("initialMessage");
 
       // Auto-submit the initial message
-      setTimeout(() => {
-        const syntheticEvent = new Event("submit", {
-          bubbles: true,
-          cancelable: true,
-        }) as unknown as React.FormEvent;
-        handleSubmit(syntheticEvent);
-      }, 100);
+      append({
+        content: initialMessage,
+        role: 'user',
+      });
     }
-  }, [messages.length, setInput, handleSubmit, isLoadingHistory]);
+  }, [messages.length, isLoadingHistory, append, slug]);
 
   // Update cache whenever messages change (and not loading history)
   useEffect(() => {
@@ -184,7 +180,7 @@ export default function ChatPage() {
               ) : messages.length === 0 ? (
                 <div className="text-center py-8"></div>
               ) : (
-                messages.map((message) => (
+                messages.map((message, index) => (
                   <div key={message.id} className="group">
                     <div
                       className={`flex gap-4 ${
@@ -216,7 +212,7 @@ export default function ChatPage() {
                           </div>
                           
                           {/* Action buttons for assistant messages */}
-                          {message.role === "assistant" && (
+                          {message.role === "assistant" && !(isLoading && index === messages.length - 1) && (
                             <TooltipProvider delayDuration={100}>
                               <div className="flex items-center gap-0.5">
                                 <Tooltip>
