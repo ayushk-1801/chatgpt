@@ -4,6 +4,8 @@ import React from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
 import { CodeBlock } from "./code-block"; // Import the new CodeBlock component
 
 interface MarkdownMessageProps {
@@ -12,11 +14,14 @@ interface MarkdownMessageProps {
 }
 
 export function MarkdownMessage({ content, className }: MarkdownMessageProps) {
+  const processedContent = content
+    .replace(/\\\[([\s\S]*?)\\\]/g, '$$$$$1$$$$')
+    .replace(/\\\(([\s\S]*?)\\\)/g, '$$$1$$');
   return (
     <div className={className}>
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeRaw]}
+        remarkPlugins={[remarkGfm, remarkMath]}
+        rehypePlugins={[rehypeRaw, rehypeKatex]}
         components={{
           h1: ({ children }) => (
             <h1 className="mt-6 mb-4 border-b pb-2 text-2xl font-bold">
@@ -57,7 +62,14 @@ export function MarkdownMessage({ content, className }: MarkdownMessageProps) {
               {children}
             </pre>
           ),
-          code: ({ inline, className, children, ...props }: any) => {
+          code: ({
+            inline,
+            className,
+            children,
+            ...props
+          }: React.HTMLAttributes<HTMLElement> & {
+            inline?: boolean;
+          }) => {
             if (inline) {
               return (
                 <code
@@ -124,7 +136,7 @@ export function MarkdownMessage({ content, className }: MarkdownMessageProps) {
           hr: () => <hr className="my-6 border-t border-neutral-700" />,
         }}
       >
-        {content}
+        {processedContent}
       </ReactMarkdown>
     </div>
   );
