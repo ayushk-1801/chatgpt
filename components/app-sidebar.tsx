@@ -18,6 +18,7 @@ import {
   SidebarRail,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import Image from "next/image";
 
 // Mock chat data - replace with your actual data
 const mockChats = [
@@ -76,10 +77,7 @@ export function AppSidebar() {
       <SidebarHeader className="border-b border-neutral-800">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 bg-white rounded-sm flex items-center justify-center">
-              <div className="w-3 h-3 bg-black rounded-full"></div>
-            </div>
-            <span className="text-lg font-semibold">ChatGPT</span>
+            <Image src="/logo.svg" alt="logo" width={24} height={24} className="text-white"/>
           </div>
           <SidebarTrigger />
         </div>

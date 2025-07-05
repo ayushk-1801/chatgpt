@@ -19,10 +19,9 @@ const PopoverContent = React.forwardRef<React.ElementRef<typeof PopoverPrimitive
 PopoverContent.displayName = PopoverPrimitive.Content.displayName;
 const Dialog = DialogPrimitive.Root;
 const DialogPortal = DialogPrimitive.Portal;
-const DialogTrigger = DialogPrimitive.Trigger;
-const DialogOverlay = React.forwardRef<React.ElementRef<typeof DialogPrimitive.Overlay>, React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>>(({ className, ...props }, ref) => ( <DialogPrimitive.Overlay ref={ref} className={cn("fixed inset-0 z-50 bg-black/60 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0", className)} {...props} />));
+const DialogOverlay = React.forwardRef<React.ElementRef<typeof DialogPrimitive.Overlay>, React.ComponentPropsWithoutRef<typeof DialogPrimitive.Overlay>>(({ className, ...props }, ref) => ( <DialogPrimitive.Overlay ref={ref} className={cn("fixed inset-0 z-50 bg-black/70 backdrop-blur-md data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0", className)} {...props} />));
 DialogOverlay.displayName = DialogPrimitive.Overlay.displayName;
-const DialogContent = React.forwardRef<React.ElementRef<typeof DialogPrimitive.Content>, React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>>(({ className, children, ...props }, ref) => ( <DialogPortal><DialogOverlay /><DialogPrimitive.Content ref={ref} className={cn("fixed left-[50%] top-[50%] z-50 grid w-full max-w-[90vw] md:max-w-[800px] translate-x-[-50%] translate-y-[-50%] gap-4 border-none bg-transparent p-0 shadow-none duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95", className)} {...props}><div className="relative bg-card dark:bg-[#303030] rounded-[28px] overflow-hidden shadow-2xl p-1">{children}<DialogPrimitive.Close className="absolute right-3 top-3 z-10 rounded-full bg-background/50 dark:bg-[#303030] p-1 hover:bg-accent dark:hover:bg-[#515151] transition-all"><XIcon className="h-5 w-5 text-muted-foreground dark:text-gray-200 hover:text-foreground dark:hover:text-white" /><span className="sr-only">Close</span></DialogPrimitive.Close></div></DialogPrimitive.Content></DialogPortal>));
+const DialogContent = React.forwardRef<React.ElementRef<typeof DialogPrimitive.Content>, React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>>(({ className, children, ...props }, ref) => ( <DialogPortal><DialogOverlay /><DialogPrimitive.Content ref={ref} className={cn("fixed left-[50%] top-[50%] z-50 grid w-full max-w-[90vw] md:max-w-[800px] translate-x-[-50%] translate-y-[-50%] gap-4 border-none bg-transparent p-0 shadow-none duration-300 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95", className)} {...props}><div className="relative bg-card dark:bg-[#303030] rounded-[28px] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.2)] dark:shadow-[0_10px_40px_rgba(0,0,0,0.4)] p-1">{children}<DialogPrimitive.Close className="absolute right-3 top-3 z-10 rounded-full bg-background/50 dark:bg-[#303030] p-1 hover:bg-accent dark:hover:bg-[#515151] transition-all"><XIcon className="h-5 w-5 text-muted-foreground dark:text-gray-200 hover:text-foreground dark:hover:text-white" /><span className="sr-only">Close</span></DialogPrimitive.Close></div></DialogPrimitive.Content></DialogPortal>));
 DialogContent.displayName = DialogPrimitive.Content.displayName;
 
 // --- SVG Icon Components ---
@@ -73,7 +72,7 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, React.TextareaHTM
         <div className="mt-0.5 p-1 pt-0">
           <TooltipProvider delayDuration={100}>
             <div className="flex items-center gap-2">
-              <Tooltip> <TooltipTrigger asChild><button type="button" onClick={handlePlusClick} className="flex h-8 w-8 items-center justify-center rounded-full text-foreground dark:text-white transition-colors hover:bg-accent dark:hover:bg-[#515151] focus-visible:outline-none"><PlusIcon className="h-6 w-6" /><span className="sr-only">Attach image</span></button></TooltipTrigger> <TooltipContent side="top" showArrow={true}><p>Attach image</p></TooltipContent> </Tooltip>
+              <Tooltip> <TooltipTrigger asChild><button type="button" onClick={handlePlusClick} className="flex h-8 w-8 items-center justify-center rounded-full text-foreground dark:text-white transition-colors hover:bg-accent dark:hover:bg-[#515151] focus-visible:outline-none"><PlusIcon className="h-6 w-6" /><span className="sr-only">Attach image</span></button></TooltipTrigger> <TooltipContent side="bottom" showArrow={true}><p>Attach image</p></TooltipContent> </Tooltip>
               
               <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
                 <Tooltip>
@@ -85,9 +84,9 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, React.TextareaHTM
                       </button>
                     </PopoverTrigger>
                   </TooltipTrigger>
-                  <TooltipContent side="top" showArrow={true}><p>Explore Tools</p></TooltipContent>
+                  <TooltipContent side="bottom" showArrow={true}><p>Explore Tools</p></TooltipContent>
                 </Tooltip>
-                <PopoverContent side="top" align="start">
+                <PopoverContent side="bottom" align="start">
                   <div className="flex flex-col gap-1">
                     {toolsList.map(tool => ( <button key={tool.id} onClick={() => { setSelectedTool(tool.id); setIsPopoverOpen(false); }} className="flex w-full items-center gap-2 rounded-md p-2 text-left text-sm hover:bg-accent dark:hover:bg-[#515151]"> <tool.icon className="h-4 w-4" /> <span>{tool.name}</span> {tool.extra && <span className="ml-auto text-xs text-muted-foreground dark:text-gray-400">{tool.extra}</span>} </button> ))}
                   </div>
@@ -114,17 +113,17 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, React.TextareaHTM
                       <span className="sr-only">Record voice</span>
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent side="top" showArrow={true}><p>Record voice</p></TooltipContent>
+                  <TooltipContent side="bottom" showArrow={true}><p>Record voice</p></TooltipContent>
                 </Tooltip>
 
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button type="submit" disabled={!hasValue} className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none bg-black text-white hover:bg-black/80 dark:bg-white dark:text-black dark:hover:bg-white/80 disabled:bg-black/40 dark:disabled:bg-[#515151]">
-                      <SendIcon className="h-6 w-6 text-bold" />
+                      <SendIcon className="h-6 w-6 text-bold text-white border dark:text-[#303030]" />
                       <span className="sr-only">Send message</span>
                     </button>
                   </TooltipTrigger>
-                  <TooltipContent side="top" showArrow={true}><p>Send</p></TooltipContent>
+                  <TooltipContent side="bottom" showArrow={true}><p>Send</p></TooltipContent>
                 </Tooltip>
               </div>
             </div>
