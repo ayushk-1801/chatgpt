@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { useChat } from "@ai-sdk/react";
 import { PromptBox } from "@/components/ui/chatgpt-prompt-input";
 import { MessageFormatter } from "@/components/ui/message-formatter";
@@ -7,6 +9,7 @@ import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import { Copy, ThumbsUp, ThumbsDown, Volume2, Edit, RefreshCw, Download, FileText } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { useModel } from "@/hooks/use-model";
 
 interface DatabaseMessage {
   _id: string;
@@ -27,6 +30,7 @@ interface FilePreview {
 export default function ChatPage() {
   const params = useParams();
   const slug = params.slug as string;
+  const { selectedModel } = useModel();
 
   const {
     messages,
@@ -41,6 +45,7 @@ export default function ChatPage() {
     id: slug, // Use slug as chat ID for persistence
     body: {
       chatId: slug, // Pass chatId to the API
+      model: selectedModel,
     },
   });
 
@@ -49,42 +54,17 @@ export default function ChatPage() {
   const chatMemoryCache: Record<string, ChatMessage[]> = {};
 
   function getCachedMessages(slug: string): ChatMessage[] | null {
-    // Check in-memory first
-    if (chatMemoryCache[slug]) return chatMemoryCache[slug];
-    // Then check localStorage
-    const key = `chat_messages_${slug}`;
-    const raw = typeof window !== 'undefined' ? localStorage.getItem(key) : null;
-    if (raw) {
-      try {
-        const parsed: ChatMessage[] = JSON.parse(raw);
-        // Convert createdAt back to Date if present
-        const parsedWithDates = parsed.map((msg: ChatMessage) => ({ ...msg, createdAt: msg.createdAt ? new Date(msg.createdAt) : undefined }));
-        chatMemoryCache[slug] = parsedWithDates;
-        return parsedWithDates;
-      } catch {}
-    }
-    return null;
+    // Only use in-memory cache to avoid localStorage quota issues
+    return chatMemoryCache[slug] ?? null;
   }
 
   function setCachedMessages(slug: string, messages: ChatMessage[]) {
+    // Store messages only in the in-memory cache
     chatMemoryCache[slug] = messages;
-    if (typeof window !== 'undefined') {
-      // Convert Date to string for storage if present
-      const toStore = messages.map(msg => ({
-        ...msg,
-        createdAt: msg.createdAt
-          ? (msg.createdAt instanceof Date
-              ? msg.createdAt.toISOString()
-              : msg.createdAt)
-          : undefined
-      }));
-      localStorage.setItem(`chat_messages_${slug}` , JSON.stringify(toStore));
-    }
   }
   // --- End cache utility ---
 
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<FilePreview | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
@@ -155,7 +135,6 @@ export default function ChatPage() {
   }, [messages, isLoadingHistory, slug]);
 
   const handleFileChange = async (file: File) => {
-    setSelectedFile(file);
     const localUrl = URL.createObjectURL(file);
     
     // Set initial preview state
@@ -196,7 +175,6 @@ export default function ChatPage() {
   };
 
   const handleRemoveFile = () => {
-    setSelectedFile(null);
     if (filePreview) {
       // Revoke the local URL to free up memory
       if (filePreview.url.startsWith('blob:')) {
@@ -211,23 +189,12 @@ export default function ChatPage() {
     if (!input.trim() && !(filePreview && filePreview.uploadStatus === 'success')) return;
 
     let messageContent = input;
-    let fileContentForApi: string | undefined = undefined;
 
     if (filePreview && filePreview.uploadStatus === 'success' && filePreview.publicUrl) {
       if (filePreview.type.startsWith('image/')) {
         messageContent = `[image:${filePreview.publicUrl}]${input}`;
       } else {
         messageContent = `[file:${filePreview.publicUrl},name:${filePreview.name},type:${filePreview.type}]${input}`;
-        
-        // Read file content for non-image files
-        if (selectedFile) {
-          try {
-            fileContentForApi = await selectedFile.text();
-          } catch (e) {
-            console.error("Error reading file content:", e);
-            // Optionally, show an error to the user
-          }
-        }
       }
     }
 
@@ -235,10 +202,6 @@ export default function ChatPage() {
       await append({
         content: messageContent,
         role: 'user',
-      }, {
-        body: {
-          fileContent: fileContentForApi,
-        },
       });
     }
 
@@ -280,20 +243,34 @@ export default function ChatPage() {
                   let fileInfo: { url: string; name: string; type: string } | null = null;
                   let messageText: string = message.content;
 
-                  if (message.role === 'user') {
-                      const imageMatch = message.content.match(imageRegex);
-                      const fileMatch = message.content.match(fileRegex);
+                  {
+                    const imageMatch = message.content.match(imageRegex);
+                    const fileMatch = message.content.match(fileRegex);
 
-                      if (imageMatch) {
-                          imageUrl = imageMatch[1];
-                          messageText = imageMatch[2];
-                      } else if (fileMatch) {
-                          fileInfo = { url: fileMatch[1], name: fileMatch[2], type: fileMatch[3] };
-                          messageText = fileMatch[4];
-                      }
+                    if (imageMatch) {
+                      imageUrl = imageMatch[1];
+                      messageText = imageMatch[2];
+                    } else if (fileMatch) {
+                      fileInfo = { url: fileMatch[1], name: fileMatch[2], type: fileMatch[3] };
+                      messageText = fileMatch[4];
+                    }
                   }
 
                   const hasAttachment = imageUrl || fileInfo;
+
+                  // Render content from tool invocations (e.g., generated images)
+                  const toolElements = Array.isArray((message as any).toolInvocations)
+                    ? (message as any).toolInvocations
+                        .filter((ti: any) => ti.toolName === 'generateImage' && ti.state === 'result')
+                        .map((ti: any) => (
+                          <img
+                            key={ti.toolCallId}
+                            src={`data:image/png;base64,${ti.result.image}`}
+                            alt={ti.result.prompt}
+                            className="mb-2 rounded-sm max-w-xs object-contain"
+                          />
+                        ))
+                    : null;
 
                   return (
                     <div key={message.id} className="group">
@@ -330,6 +307,9 @@ export default function ChatPage() {
                                 </div>
                               </a>
                             )}
+
+                            {/* Tool invocation elements (e.g., generated images) */}
+                            {toolElements}
 
                             {(message.role === 'assistant' || messageText.trim()) && (
                               <div

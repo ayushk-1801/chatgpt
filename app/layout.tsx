@@ -8,6 +8,7 @@ import "katex/dist/katex.min.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Header } from "@/components/header";
 import { AppSidebarProvider } from "@/components/app-sidebar";
+import { ModelProvider } from "@/hooks/use-model";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -42,8 +43,10 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             <AppSidebarProvider>
-              <Header />
-              {children}
+              <ModelProvider>
+                <Header />
+                {children}
+              </ModelProvider>
             </AppSidebarProvider>
           </ThemeProvider>
         </body>

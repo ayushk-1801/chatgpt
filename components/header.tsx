@@ -36,6 +36,7 @@ import {
   TooltipTrigger,
 } from "./ui/tooltip";
 import { mainModels, moreModels } from "@/lib/models";
+import { useModel } from "@/hooks/use-model";
 
 function CustomUserProfile() {
   const { user } = useUser();
@@ -115,7 +116,7 @@ function CustomUserProfile() {
 }
 
 export function Header() {
-  const [selectedModel, setSelectedModel] = React.useState("gpt-4o");
+  const { selectedModel, setSelectedModel } = useModel();
 
   const handleModelSelect = (modelId: string) => {
     setSelectedModel(modelId);
