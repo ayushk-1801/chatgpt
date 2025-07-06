@@ -17,6 +17,10 @@ import {
   LogOut,
   User,
   ChevronRight,
+  Share,
+  MoreHorizontal,
+  Archive,
+  Trash2,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import {
@@ -37,6 +41,7 @@ import {
 } from "./ui/tooltip";
 import { mainModels, moreModels } from "@/lib/models";
 import { useModel } from "@/hooks/use-model";
+import { usePathname } from "next/navigation";
 
 function CustomUserProfile() {
   const { user } = useUser();
@@ -117,9 +122,27 @@ function CustomUserProfile() {
 
 export function Header() {
   const { selectedModel, setSelectedModel } = useModel();
+  const pathname = usePathname();
+  const isChatPage = pathname?.startsWith('/c/');
 
   const handleModelSelect = (modelId: string) => {
     setSelectedModel(modelId);
+  };
+
+  const handleShare = () => {
+    // Copy current URL to clipboard
+    navigator.clipboard.writeText(window.location.href);
+    // You could add a toast notification here
+  };
+
+  const handleArchive = () => {
+    // Implement archive functionality
+    console.log('Archive chat');
+  };
+
+  const handleDelete = () => {
+    // Implement delete functionality
+    console.log('Delete chat');
   };
 
   const allModels = [...mainModels, ...moreModels];
@@ -231,63 +254,121 @@ export function Header() {
           </DropdownMenu>
         </div>
 
-        {/* Right side - Settings and Auth */}
+        {/* Right side - Chat actions or Settings and Auth */}
         <div className="flex items-center space-x-2">
-          <SignedOut>
-            <div className="flex items-center space-x-2">
-              <SignInButton>
-                <Button
-                  variant="secondary"
-                  className="bg-white text-black hover:bg-neutral-100 px-4 py-1.5 rounded-full transition-colors font-medium text-sm"
-                >
-                  Log in
-                </Button>
-              </SignInButton>
-
-              <SignInButton>
-                <Button
-                  variant="outline"
-                  className="border-neutral-600 text-white hover:bg-neutral-100 hover:text-black px-4 py-1.5 rounded-full transition-colors font-medium text-sm"
-                >
-                  Sign up for free
-                </Button>
-              </SignInButton>
-
+          {isChatPage ? (
+            /* Chat page specific buttons */
+            <SignedIn>
               <Tooltip>
                 <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="p-1.5 hover:bg-neutral-100 dark:hover:bg-[#515151] rounded-lg transition-colors"
+                    onClick={handleShare}
+                  >
+                    <Share className="w-4 h-4" />
+                    Share
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent className="rounded-md bg-white dark:bg-[#303030] p-1.5 shadow-md border-none">
+                  <p>Share</p>
+                </TooltipContent>
+              </Tooltip>
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
                     size="icon"
                     className="p-1.5 hover:bg-neutral-100 dark:hover:bg-[#515151] rounded-lg transition-colors"
                   >
-                    <HelpCircle className="w-4 h-4" />
+                    <MoreHorizontal className="w-4 h-4" />
                   </Button>
-                </TooltipTrigger>
-                <TooltipContent className="rounded-md bg-white dark:bg-[#303030] p-1.5 shadow-md border-none">
-                  <p>Help & FAQ</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
-          </SignedOut>
-
-          <SignedIn>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="p-1.5 hover:bg-neutral-100 dark:hover:bg-[#515151] rounded-lg transition-colors"
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className=" rounded-xl bg-white dark:bg-[#303030] p-2 shadow-2xl border-none"
                 >
-                  <Settings className="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent className="rounded-md bg-white dark:bg-[#303030] p-1.5 shadow-md border-none">
-                <p>Settings</p>
-              </TooltipContent>
-            </Tooltip>
+                  <DropdownMenuItem
+                    className="rounded-md hover:bg-neutral-100 dark:hover:bg-[#515151] p-2 cursor-pointer transition-colors text-sm"
+                    onClick={handleArchive}
+                  >
+                    <Archive className="w-4 h-4 mr-2" />
+                    <span>Archive</span>
+                  </DropdownMenuItem>
+                    <DropdownMenuItem
+                    className="rounded-md hover:bg-red-100 dark:hover:bg-red-900/30 p-2 cursor-pointer transition-colors text-sm text-neutral-700 dark:text-neutral-200 hover:text-red-500 dark:hover:text-red-300"
+                    onClick={handleDelete}
+                    >
+                    <Trash2 className="w-4 h-4 mr-2 group-hover:text-red-500 dark:group-hover:text-red-300" />
+                    <span>Delete</span>
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-            <CustomUserProfile />
-          </SignedIn>
+              <CustomUserProfile />
+            </SignedIn>
+          ) : (
+            /* Default header buttons */
+            <>
+              <SignedOut>
+                <div className="flex items-center space-x-2">
+                  <SignInButton>
+                    <Button
+                      variant="secondary"
+                      className="bg-white text-black hover:bg-neutral-100 px-4 py-1.5 rounded-full transition-colors font-medium text-sm"
+                    >
+                      Log in
+                    </Button>
+                  </SignInButton>
+
+                  <SignInButton>
+                    <Button
+                      variant="outline"
+                      className="border-neutral-600 text-white hover:bg-neutral-100 hover:text-black px-4 py-1.5 rounded-full transition-colors font-medium text-sm"
+                    >
+                      Sign up for free
+                    </Button>
+                  </SignInButton>
+
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="p-1.5 hover:bg-neutral-100 dark:hover:bg-[#515151] rounded-lg transition-colors"
+                      >
+                        <HelpCircle className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent className="rounded-md bg-white dark:bg-[#303030] p-1.5 shadow-md border-none">
+                      <p>Help & FAQ</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
+              </SignedOut>
+
+              <SignedIn>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="p-1.5 hover:bg-neutral-100 dark:hover:bg-[#515151] rounded-lg transition-colors"
+                    >
+                      <Settings className="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent className="rounded-md bg-white dark:bg-[#303030] p-1.5 shadow-md border-none">
+                    <p>Settings</p>
+                  </TooltipContent>
+                </Tooltip>
+
+                <CustomUserProfile />
+              </SignedIn>
+            </>
+          )}
         </div>
       </TooltipProvider>
     </header>
