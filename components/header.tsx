@@ -42,6 +42,7 @@ import {
 import { mainModels, moreModels } from "@/lib/models";
 import { useModel } from "@/hooks/use-model";
 import { usePathname } from "next/navigation";
+import { SettingsDialog } from "./settings-dialog";
 
 function CustomUserProfile() {
   const { user } = useUser();
@@ -55,7 +56,7 @@ function CustomUserProfile() {
         <Button
           variant="ghost"
           size="icon"
-          className="w-6 h-6 rounded-full hover:opacity-80 transition-opacity"
+          className="w-6 h-6 rounded-full hover:opacity-80 transition-opacity focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0"
         >
           {user.imageUrl ? (
             <img
@@ -92,10 +93,15 @@ function CustomUserProfile() {
             <span>Customize ChatGPT</span>
           </DropdownMenuItem>
 
-          <DropdownMenuItem className="rounded-md hover:bg-neutral-100 dark:hover:bg-[#515151] p-2 cursor-pointer transition-colors text-sm">
-            <Settings className="w-4 h-4 mr-2" />
-            <span>Settings</span>
-          </DropdownMenuItem>
+          <SettingsDialog>
+            <DropdownMenuItem 
+              className="rounded-md hover:bg-neutral-100 dark:hover:bg-[#515151] p-2 cursor-pointer transition-colors text-sm"
+              onSelect={(e) => e.preventDefault()}
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              <span>Settings</span>
+            </DropdownMenuItem>
+          </SettingsDialog>
 
           <DropdownMenuSeparator className="my-1 bg-border" />
 
@@ -210,7 +216,7 @@ export function Header() {
               ))}
 
               <DropdownMenuSub>
-                <DropdownMenuSubTrigger className="rounded-md hover:bg-neutral-100 dark:hover:bg-[#515151] p-2 cursor-pointer transition-colors">
+                <DropdownMenuSubTrigger className="rounded-md hover:bg-neutral-100 dark:hover:bg-[#515151] p-2 cursor-pointer transition-colors focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0">
                   <span className="font-medium text-sm">More models</span>
                 </DropdownMenuSubTrigger>
                 <DropdownMenuSubContent className="w-64 rounded-xl bg-white dark:bg-[#303030] p-2 shadow-2xl border-none">
@@ -264,7 +270,7 @@ export function Header() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="p-1.5 hover:bg-neutral-100 dark:hover:bg-[#515151] rounded-lg transition-colors"
+                    className="p-1.5 hover:bg-neutral-100 dark:hover:bg-[#515151] rounded-lg transition-colors focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0"
                     onClick={handleShare}
                   >
                     <Share className="w-4 h-4" />
@@ -281,7 +287,7 @@ export function Header() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="p-1.5 hover:bg-neutral-100 dark:hover:bg-[#515151] rounded-lg transition-colors"
+                    className="p-1.5 hover:bg-neutral-100 dark:hover:bg-[#515151] rounded-lg transition-colors focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0"
                   >
                     <MoreHorizontal className="w-4 h-4" />
                   </Button>
@@ -317,7 +323,7 @@ export function Header() {
                   <SignInButton>
                     <Button
                       variant="secondary"
-                      className="bg-white text-black hover:bg-neutral-100 px-4 py-1.5 rounded-full transition-colors font-medium text-sm"
+                      className="bg-white text-black hover:bg-neutral-100 px-4 py-1.5 rounded-full transition-colors font-medium text-sm focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0"
                     >
                       Log in
                     </Button>
@@ -326,7 +332,7 @@ export function Header() {
                   <SignInButton>
                     <Button
                       variant="outline"
-                      className="border-neutral-600 text-white hover:bg-neutral-100 hover:text-black px-4 py-1.5 rounded-full transition-colors font-medium text-sm"
+                      className="border-neutral-600 text-white hover:bg-neutral-100 hover:text-black px-4 py-1.5 rounded-full transition-colors font-medium text-sm focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0"
                     >
                       Sign up for free
                     </Button>
@@ -337,7 +343,7 @@ export function Header() {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="p-1.5 hover:bg-neutral-100 dark:hover:bg-[#515151] rounded-lg transition-colors"
+                        className="p-1.5 hover:bg-neutral-100 dark:hover:bg-[#515151] rounded-lg transition-colors focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0"
                       >
                         <HelpCircle className="w-4 h-4" />
                       </Button>
@@ -350,20 +356,22 @@ export function Header() {
               </SignedOut>
 
               <SignedIn>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="p-1.5 hover:bg-neutral-100 dark:hover:bg-[#515151] rounded-lg transition-colors"
-                    >
-                      <Settings className="w-4 h-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent className="rounded-md bg-white dark:bg-[#303030] p-1.5 shadow-md border-none">
-                    <p>Settings</p>
-                  </TooltipContent>
-                </Tooltip>
+                <SettingsDialog>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="p-1.5 hover:bg-neutral-100 dark:hover:bg-[#515151] rounded-lg transition-colors focus:outline-none focus:ring-0 focus:ring-offset-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                      >
+                        <Settings className="w-4 h-4" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent className="rounded-md bg-white dark:bg-[#303030] p-1.5 shadow-md border-none">
+                      <p>Settings</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </SettingsDialog>
 
                 <CustomUserProfile />
               </SignedIn>
