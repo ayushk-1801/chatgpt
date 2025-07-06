@@ -5,7 +5,7 @@ import { PromptBox } from "@/components/ui/chatgpt-prompt-input";
 import { MessageFormatter } from "@/components/ui/message-formatter";
 import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
-import { Copy, ThumbsUp, ThumbsDown, Volume2, Edit, RefreshCw, Download } from "lucide-react";
+import { Copy, ThumbsUp, ThumbsDown, Volume2, Edit, RefreshCw, Download, FileText } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 interface DatabaseMessage {
@@ -16,6 +16,14 @@ interface DatabaseMessage {
   model?: string;
 }
 
+interface FilePreview {
+  url: string;
+  type: string;
+  name: string;
+  uploadStatus: 'uploading' | 'success' | 'error';
+  publicUrl?: string;
+}
+
 export default function ChatPage() {
   const params = useParams();
   const slug = params.slug as string;
@@ -24,11 +32,11 @@ export default function ChatPage() {
     messages,
     input,
     handleInputChange,
-    handleSubmit,
     isLoading,
     error,
     setMessages,
     append,
+    setInput,
   } = useChat({
     id: slug, // Use slug as chat ID for persistence
     body: {
@@ -75,8 +83,9 @@ export default function ChatPage() {
   }
   // --- End cache utility ---
 
-  const [isTyping, setIsTyping] = useState(false);
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [filePreview, setFilePreview] = useState<FilePreview | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   // Load existing messages when the page loads
@@ -145,13 +154,96 @@ export default function ChatPage() {
     }
   }, [messages, isLoadingHistory, slug]);
 
+  const handleFileChange = async (file: File) => {
+    setSelectedFile(file);
+    const localUrl = URL.createObjectURL(file);
+    
+    // Set initial preview state
+    setFilePreview({ 
+      url: localUrl, 
+      type: file.type, 
+      name: file.name,
+      uploadStatus: 'uploading' 
+    });
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    try {
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'File upload failed');
+      }
+
+      setFilePreview(prev => prev ? {
+        ...prev,
+        uploadStatus: 'success',
+        publicUrl: result.url,
+      } : null);
+
+    } catch (err) {
+      console.error("Upload error:", err);
+      setFilePreview(prev => prev ? {
+        ...prev,
+        uploadStatus: 'error',
+      } : null);
+    }
+  };
+
+  const handleRemoveFile = () => {
+    setSelectedFile(null);
+    if (filePreview) {
+      // Revoke the local URL to free up memory
+      if (filePreview.url.startsWith('blob:')) {
+          URL.revokeObjectURL(filePreview.url);
+      }
+      setFilePreview(null);
+    }
+  };
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() && !(filePreview && filePreview.uploadStatus === 'success')) return;
 
-    setIsTyping(true);
-    await handleSubmit(e);
-    setIsTyping(false);
+    let messageContent = input;
+    let fileContentForApi: string | undefined = undefined;
+
+    if (filePreview && filePreview.uploadStatus === 'success' && filePreview.publicUrl) {
+      if (filePreview.type.startsWith('image/')) {
+        messageContent = `[image:${filePreview.publicUrl}]${input}`;
+      } else {
+        messageContent = `[file:${filePreview.publicUrl},name:${filePreview.name},type:${filePreview.type}]${input}`;
+        
+        // Read file content for non-image files
+        if (selectedFile) {
+          try {
+            fileContentForApi = await selectedFile.text();
+          } catch (e) {
+            console.error("Error reading file content:", e);
+            // Optionally, show an error to the user
+          }
+        }
+      }
+    }
+
+    if (messageContent.trim()) {
+      await append({
+        content: messageContent,
+        role: 'user',
+      }, {
+        body: {
+          fileContent: fileContentForApi,
+        },
+      });
+    }
+
+    setInput('');
+    handleRemoveFile();
   };
 
   return (
@@ -180,178 +272,222 @@ export default function ChatPage() {
               ) : messages.length === 0 ? (
                 <div className="text-center py-8"></div>
               ) : (
-                messages.map((message, index) => (
-                  <div key={message.id} className="group">
-                    <div
-                      className={`flex gap-4 ${
-                        message.role === "user"
-                          ? "justify-end"
-                          : "justify-start"
-                      }`}
-                    >
+                messages.map((message, index) => {
+                  const imageRegex = /\[image:(.*?)\]([\s\S]*)/;
+                  const fileRegex = /\[file:(.*?),name:(.*?),type:(.*?)\]([\s\S]*)/;
+
+                  let imageUrl: string | null = null;
+                  let fileInfo: { url: string; name: string; type: string } | null = null;
+                  let messageText: string = message.content;
+
+                  if (message.role === 'user') {
+                      const imageMatch = message.content.match(imageRegex);
+                      const fileMatch = message.content.match(fileRegex);
+
+                      if (imageMatch) {
+                          imageUrl = imageMatch[1];
+                          messageText = imageMatch[2];
+                      } else if (fileMatch) {
+                          fileInfo = { url: fileMatch[1], name: fileMatch[2], type: fileMatch[3] };
+                          messageText = fileMatch[4];
+                      }
+                  }
+
+                  const hasAttachment = imageUrl || fileInfo;
+
+                  return (
+                    <div key={message.id} className="group">
                       <div
-                        className={`flex gap-4  ${
+                        className={`flex gap-4 ${
                           message.role === "user"
-                            ? "flex-row-reverse max-w-[80%]"
-                            : "flex-row"
+                            ? "justify-end"
+                            : "justify-start"
                         }`}
                       >
-                        {/* Message Content */}
-                        <div className="flex flex-col">
-                          <div
-                            className={`${
-                              message.role === "user"
-                                ? "px-4 bg-neutral-700/50 text-white"
-                                : "text-gray-100"
-                            } rounded-4xl  py-3`}
-                          >
-                            <MessageFormatter 
-                              content={message.content}
-                              className="leading-relaxed"
-                            />
-                          </div>
-                          
-                          {/* Action buttons for assistant messages */}
-                          {message.role === "assistant" && !(isLoading && index === messages.length - 1) && (
-                            <TooltipProvider delayDuration={100}>
-                              <div className="flex items-center gap-0.5">
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <button
-                                      onClick={() => navigator.clipboard.writeText(message.content)}
-                                      className="p-1.5 rounded-md hover:bg-neutral-700 text-gray-200 hover:text-white transition-colors"
-                                    >
-                                      <Copy size={16} />
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="bottom">
-                                    <p>Copy message</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                                
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <button
-                                      className="p-1.5 rounded-md hover:bg-neutral-700 text-gray-200 hover:text-white transition-colors"
-                                    >
-                                      <ThumbsUp size={16} />
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="bottom">
-                                    <p>Good response</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                                
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <button
-                                      className="p-1.5 rounded-md hover:bg-neutral-700 text-gray-200 hover:text-white transition-colors"
-                                    >
-                                      <ThumbsDown size={16} />
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="bottom">
-                                    <p>Bad response</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                                
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <button
-                                      className="p-1.5 rounded-md hover:bg-neutral-700 text-gray-200 hover:text-white transition-colors"
-                                    >
-                                      <Volume2 size={16} />
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="bottom">
-                                    <p>Read aloud</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                                
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <button
-                                      className="p-1.5 rounded-md hover:bg-neutral-700 text-gray-200 hover:text-white transition-colors"
-                                    >
-                                      <Edit size={16} />
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="bottom">
-                                    <p>Edit message</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                                
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <button
-                                      className="p-1.5 rounded-md hover:bg-neutral-700 text-gray-200 hover:text-white transition-colors"
-                                    >
-                                      <RefreshCw size={16} />
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="bottom">
-                                    <p>Regenerate response</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                                
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <button
-                                      className="p-1.5 rounded-md hover:bg-neutral-700 text-gray-200 hover:text-white transition-colors"
-                                    >
-                                      <Download size={16} />
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="bottom">
-                                    <p>Download</p>
-                                  </TooltipContent>
-                                </Tooltip>
+                        <div
+                          className={`flex gap-4  ${
+                            message.role === "user"
+                              ? "flex-row-reverse max-w-[80%]"
+                              : "flex-row"
+                          }`}
+                        >
+                          {/* Message Content */}
+                          <div className="flex flex-col">
+                            {imageUrl && (
+                              <div className="mb-2">
+                                <img src={imageUrl} alt="User upload" className="rounded-sm max-w-xs object-contain" />
                               </div>
-                            </TooltipProvider>
-                          )}
+                            )}
 
-                          {/* Action buttons for user messages - only on hover */}
-                          {message.role === "user" && (
-                            <TooltipProvider delayDuration={100}>
-                              <div className="flex items-center justify-end gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <button
-                                      onClick={() => navigator.clipboard.writeText(message.content)}
-                                      className="p-1.5 rounded-md hover:bg-neutral-600 text-gray-200 hover:text-white transition-colors"
-                                    >
-                                      <Copy size={16} />
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="bottom">
-                                    <p>Copy message</p>
-                                  </TooltipContent>
-                                </Tooltip>
-                                
-                                <Tooltip>
-                                  <TooltipTrigger asChild>
-                                    <button
-                                      className="p-1.5 rounded-md hover:bg-neutral-600 text-gray-200 hover:text-white transition-colors"
-                                    >
-                                      <Edit size={16} />
-                                    </button>
-                                  </TooltipTrigger>
-                                  <TooltipContent side="bottom">
-                                    <p>Edit message</p>
-                                  </TooltipContent>
-                                </Tooltip>
+                            {fileInfo && (
+                              <a href={fileInfo.url} target="_blank" rel="noopener noreferrer" className="mb-2">
+                                <div className="flex items-center gap-3 rounded-xl bg-neutral-700/50 p-3 max-w-xs hover:bg-neutral-700 transition-colors">
+                                  <FileText className="h-8 w-8 text-white flex-shrink-0" />
+                                  <div className="flex flex-col overflow-hidden">
+                                    <span className="text-white font-medium truncate">{fileInfo.name}</span>
+                                    <span className="text-neutral-300 text-sm">{fileInfo.type.split('/')[1]?.toUpperCase() || 'File'}</span>
+                                  </div>
+                                </div>
+                              </a>
+                            )}
+
+                            {(message.role === 'assistant' || messageText.trim()) && (
+                              <div
+                                className={`${
+                                  message.role === "user"
+                                    ? `px-4 bg-neutral-700/50 text-white rounded-3xl ${hasAttachment ? 'rounded-tr-sm' : ''}`
+                                    : "text-gray-100 rounded-xl"
+                                } py-3`}
+                              >
+                                <MessageFormatter 
+                                  content={messageText}
+                                  className="leading-relaxed"
+                                />
                               </div>
-                            </TooltipProvider>
-                          )}
+                            )}
+                            
+                            {/* Action buttons for assistant messages */}
+                            {message.role === "assistant" && !(isLoading && index === messages.length - 1) && (
+                              <TooltipProvider delayDuration={100}>
+                                <div className="flex items-center gap-0.5">
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <button
+                                        onClick={() => navigator.clipboard.writeText(message.content)}
+                                        className="p-1.5 rounded-md hover:bg-neutral-700 text-gray-200 hover:text-white transition-colors"
+                                      >
+                                        <Copy size={16} />
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="bottom">
+                                      <p>Copy message</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                  
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <button
+                                        className="p-1.5 rounded-md hover:bg-neutral-700 text-gray-200 hover:text-white transition-colors"
+                                      >
+                                        <ThumbsUp size={16} />
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="bottom">
+                                      <p>Good response</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                  
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <button
+                                        className="p-1.5 rounded-md hover:bg-neutral-700 text-gray-200 hover:text-white transition-colors"
+                                      >
+                                        <ThumbsDown size={16} />
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="bottom">
+                                      <p>Bad response</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                  
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <button
+                                        className="p-1.5 rounded-md hover:bg-neutral-700 text-gray-200 hover:text-white transition-colors"
+                                      >
+                                        <Volume2 size={16} />
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="bottom">
+                                      <p>Read aloud</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                  
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <button
+                                        className="p-1.5 rounded-md hover:bg-neutral-700 text-gray-200 hover:text-white transition-colors"
+                                      >
+                                        <Edit size={16} />
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="bottom">
+                                      <p>Edit message</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                  
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <button
+                                        className="p-1.5 rounded-md hover:bg-neutral-700 text-gray-200 hover:text-white transition-colors"
+                                      >
+                                        <RefreshCw size={16} />
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="bottom">
+                                      <p>Regenerate response</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                  
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <button
+                                        className="p-1.5 rounded-md hover:bg-neutral-700 text-gray-200 hover:text-white transition-colors"
+                                      >
+                                        <Download size={16} />
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="bottom">
+                                      <p>Download</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </div>
+                              </TooltipProvider>
+                            )}
+
+                            {/* Action buttons for user messages - only on hover */}
+                            {message.role === "user" && (
+                              <TooltipProvider delayDuration={100}>
+                                <div className="flex items-center justify-end gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <button
+                                        onClick={() => navigator.clipboard.writeText(message.content)}
+                                        className="p-1.5 rounded-md hover:bg-neutral-600 text-gray-200 hover:text-white transition-colors"
+                                      >
+                                        <Copy size={16} />
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="bottom">
+                                      <p>Copy message</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                  
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <button
+                                        className="p-1.5 rounded-md hover:bg-neutral-600 text-gray-200 hover:text-white transition-colors"
+                                      >
+                                        <Edit size={16} />
+                                      </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent side="bottom">
+                                      <p>Edit message</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </div>
+                              </TooltipProvider>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))
+                  )
+                })
               )}
 
               {/* Typing indicator */}
-              {(isLoading || isTyping) && (
+              {(isLoading || isLoadingHistory) && (
                 <div className="flex gap-4 justify-start">
                   <div className="w-3 h-3 bg-gray-500 rounded-full animate-pulse"></div>
                 </div>
@@ -371,6 +507,9 @@ export default function ChatPage() {
                 disabled={isLoading}
                 placeholder="Ask anything"
                 className="bg-gray-800 border-gray-600 text-white"
+                onFileChange={handleFileChange}
+                onRemoveFile={handleRemoveFile}
+                filePreview={filePreview}
               />
             </form>
 

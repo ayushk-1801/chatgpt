@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
       return new Response('Unauthorized', { status: 401 });
     }
 
-    const { messages, chatId }: { messages: UIMessage[]; chatId?: string } = await req.json();
+    const { messages, chatId, fileContent }: { messages: UIMessage[]; chatId?: string; fileContent?: string } = await req.json();
     
     await dbConnect();
 
@@ -61,6 +61,10 @@ export async function POST(req: NextRequest) {
 
     const latestUserMessage = messages[messages.length - 1];
     let systemPrompt = 'You are a helpful assistant. Provide clear, concise, and accurate responses.';
+
+    if (fileContent) {
+      systemPrompt += `\n\n--- Start of File Content ---\n${fileContent}\n--- End of File Content ---\n\nUse the file content above to answer the user's question.`;
+    }
 
     if (latestUserMessage && latestUserMessage.role === 'user') {
       const relevantMemories = await memory.search(latestUserMessage.content, { user_id: userId });

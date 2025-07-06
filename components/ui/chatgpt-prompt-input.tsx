@@ -4,6 +4,7 @@ import * as React from "react";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import * as PopoverPrimitive from "@radix-ui/react-popover";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
+import { Paperclip, File as FileIcon, Image as ImageIcon, Loader2, AlertTriangle } from 'lucide-react';
 
 // --- Utility Function & Radix Primitives (Unchanged) ---
 type ClassValue = string | number | boolean | null | undefined;
@@ -41,15 +42,17 @@ const toolsList = [ { id: 'createImage', name: 'Create an image', shortName: 'Im
 // --- The Final, Self-Contained PromptBox Component ---
 interface PromptBoxProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
   name?: string;
+  onFileChange: (file: File) => void;
+  onRemoveFile: () => void;
+  filePreview: { url: string; type: string, name: string, uploadStatus: 'uploading' | 'success' | 'error' } | null;
 }
 
 export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
-  ({ className, name, value: controlledValue, onChange, ...props }, ref) => {
+  ({ className, name, value: controlledValue, onChange, onFileChange, onRemoveFile, filePreview, ...props }, ref) => {
     // ... all state and handlers are unchanged ...
     const internalTextareaRef = React.useRef<HTMLTextAreaElement>(null);
     const fileInputRef = React.useRef<HTMLInputElement>(null);
     const [internalValue, setInternalValue] = React.useState("");
-    const [imagePreview, setImagePreview] = React.useState<string | null>(null);
     const [selectedTool, setSelectedTool] = React.useState<string | null>(null);
     const [isPopoverOpen, setIsPopoverOpen] = React.useState(false);
     const [isImageDialogOpen, setIsImageDialogOpen] = React.useState(false);
@@ -79,18 +82,63 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
       if (onChange) onChange(e); 
     };
     
-    const handlePlusClick = () => { fileInputRef.current?.click(); };
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => { const file = event.target.files?.[0]; if (file && file.type.startsWith("image/")) { const reader = new FileReader(); reader.onloadend = () => { setImagePreview(reader.result as string); }; reader.readAsDataURL(file); } event.target.value = ""; };
-    const handleRemoveImage = (e: React.MouseEvent<HTMLButtonElement>) => { e.stopPropagation(); setImagePreview(null); if(fileInputRef.current) { fileInputRef.current.value = ""; } };
-    const hasValue = (value || "").toString().trim().length > 0 || imagePreview;
+    const handleAttachClick = () => { fileInputRef.current?.click(); };
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => { 
+        const file = event.target.files?.[0]; 
+        if (file) {
+            onFileChange(file);
+        }
+        event.target.value = ""; 
+    };
+    const handleRemoveFile = (e: React.MouseEvent<HTMLButtonElement>) => { 
+        e.stopPropagation(); 
+        onRemoveFile();
+        if(fileInputRef.current) { 
+            fileInputRef.current.value = ""; 
+        } 
+    };
+    const hasValue = (value || "").toString().trim().length > 0 || filePreview;
     const activeTool = selectedTool ? toolsList.find(t => t.id === selectedTool) : null;
     const ActiveToolIcon = activeTool?.icon;
 
     return (
       <div className={cn("flex flex-col rounded-[28px] p-2 shadow-sm transition-colors bg-white border dark:bg-[#303030] dark:border-transparent cursor-text", className)}>
-        <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="image/*"/>
+        <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
         
-        {imagePreview && ( <Dialog open={isImageDialogOpen} onOpenChange={setIsImageDialogOpen}> <div className="relative mb-1 w-fit rounded-[1rem] px-1 pt-1"> <button type="button" className="transition-transform" onClick={() => setIsImageDialogOpen(true)}> <img src={imagePreview} alt="Image preview" className="h-14.5 w-14.5 rounded-[1rem]" /> </button> <button onClick={handleRemoveImage} className="absolute right-2 top-2 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-white/50 dark:bg-[#303030] text-black dark:text-white transition-colors hover:bg-accent dark:hover:bg-[#515151]" aria-label="Remove image"> <XIcon className="h-4 w-4" /> </button> </div> <DialogContent> <img src={imagePreview} alt="Full size preview" className="w-full max-h-[95vh] object-contain rounded-[24px]" /> </DialogContent> </Dialog> )}
+        {filePreview && (
+          <div className="relative mb-1 w-fit rounded-[1rem] p-1">
+            <div className="relative">
+              {filePreview.type.startsWith("image/") ? (
+                <Dialog open={isImageDialogOpen} onOpenChange={setIsImageDialogOpen}>
+                  <button type="button" className="transition-transform" onClick={() => setIsImageDialogOpen(true)}>
+                    <img src={filePreview.url} alt="Image preview" className="h-14.5 w-14.5 rounded-[1rem] object-cover" />
+                  </button>
+                  <DialogContent>
+                    <img src={filePreview.url} alt="Full size preview" className="w-full max-h-[95vh] object-contain rounded-[24px]" />
+                  </DialogContent>
+                </Dialog>
+              ) : (
+                <div className="flex items-center gap-2 p-2 rounded-[1rem] bg-neutral-200 dark:bg-neutral-700">
+                  <FileIcon className="h-8 w-8 text-gray-500" />
+                  <span className="text-sm text-neutral-800 dark:text-neutral-200 truncate max-w-[150px]">{filePreview.name}</span>
+                </div>
+              )}
+              {filePreview.uploadStatus === 'uploading' && (
+                <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-[1rem]">
+                  <Loader2 className="h-6 w-6 animate-spin text-white" />
+                </div>
+              )}
+              {filePreview.uploadStatus === 'error' && (
+                <div className="absolute inset-0 bg-red-500/50 flex items-center justify-center rounded-[1rem]">
+                  <AlertTriangle className="h-6 w-6 text-white" />
+                </div>
+              )}
+            </div>
+            <button onClick={handleRemoveFile} className="absolute -right-1 -top-1 z-10 flex h-4 w-4 items-center justify-center rounded-full bg-white/50 dark:bg-[#303030] text-black dark:text-white transition-colors hover:bg-accent dark:hover:bg-[#515151]" aria-label="Remove file">
+              <XIcon className="h-4 w-4" />
+            </button>
+          </div>
+        )}
         
         <textarea 
           ref={internalTextareaRef} 
@@ -111,7 +159,15 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
         <div className="mt-0.5 p-1 pt-0">
           <TooltipProvider delayDuration={100}>
             <div className="flex items-center gap-2">
-              <Tooltip> <TooltipTrigger asChild><button type="button" onClick={handlePlusClick} className="flex h-8 w-8 items-center justify-center rounded-full text-foreground dark:text-white transition-colors hover:bg-accent dark:hover:bg-[#515151] focus-visible:outline-none"><PlusIcon className="h-6 w-6" /><span className="sr-only">Attach image</span></button></TooltipTrigger> <TooltipContent side="bottom"><p>Attach image</p></TooltipContent> </Tooltip>
+              <Tooltip> 
+                <TooltipTrigger asChild>
+                  <button type="button" onClick={handleAttachClick} className="flex h-8 w-8 items-center justify-center rounded-full text-foreground dark:text-white transition-colors hover:bg-accent dark:hover:bg-[#515151] focus-visible:outline-none">
+                    <Paperclip className="h-5 w-5" />
+                    <span className="sr-only">Attach file</span>
+                  </button>
+                </TooltipTrigger> 
+                <TooltipContent side="bottom"><p>Attach file</p></TooltipContent> 
+              </Tooltip>
               
               <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
                 <Tooltip>
