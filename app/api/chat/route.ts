@@ -1,10 +1,19 @@
 import { openai } from '@ai-sdk/openai';
-import { streamText, convertToCoreMessages, UIMessage } from 'ai';
+import { streamText, convertToCoreMessages, UIMessage, OnFinishResult } from 'ai';
 import { auth } from '@clerk/nextjs/server';
 import dbConnect from '@/lib/db';
 import Chat from '@/lib/models/Chat';
 import Message from '@/lib/models/Message';
 import { NextRequest } from 'next/server';
+import { MemoryClient } from 'mem0ai';
+
+if (!process.env.MEM0_API_KEY) {
+  throw new Error('MEM0_API_KEY is not set in the environment variables.');
+}
+
+const memory = new MemoryClient({
+  apiKey: process.env.MEM0_API_KEY,
+});
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
@@ -50,12 +59,29 @@ export async function POST(req: NextRequest) {
 
     const modelIdentifier = 'gpt-4o';
 
+    const latestUserMessage = messages[messages.length - 1];
+    let systemPrompt = 'You are a helpful assistant. Provide clear, concise, and accurate responses.';
+
+    if (latestUserMessage && latestUserMessage.role === 'user') {
+      const relevantMemories = await memory.search(latestUserMessage.content, { user_id: userId });
+      if (relevantMemories && relevantMemories.length > 0) {
+        const memoriesStr = relevantMemories
+          .map(entry => `- ${entry.memory}`)
+          .join('\n');
+        systemPrompt += `\n\nHere are some relevant memories about the user:\n${memoriesStr}`;
+      }
+    }
+
+    const messagesWithMemory = [
+      { role: 'system', content: systemPrompt },
+      ...messages
+    ];
+
     // Generate AI response
     const result = streamText({
       model: openai(modelIdentifier),
-      system: 'You are a helpful assistant. Provide clear, concise, and accurate responses.',
-      messages: convertToCoreMessages(messages),
-      onFinish: async (result) => {
+      messages: convertToCoreMessages(messagesWithMemory),
+      onFinish: async (result: OnFinishResult) => {
         // Save assistant response to database
         await Message.create({
           chatId: chat._id,
@@ -63,6 +89,15 @@ export async function POST(req: NextRequest) {
           content: result.text,
           model: modelIdentifier,
         });
+
+        // Save messages to mem0
+        const userMessage = messages[messages.length - 1];
+        if (userMessage.role === 'user') {
+          await memory.add([
+            { role: 'user', content: userMessage.content },
+            { role: 'assistant', content: result.text }
+          ], { user_id: userId });
+        }
         
         // Update chat's updatedAt timestamp
         await Chat.findByIdAndUpdate(chat._id, { updatedAt: new Date() });
