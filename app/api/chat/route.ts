@@ -1,5 +1,5 @@
 import { openai } from '@ai-sdk/openai';
-// @ts-expect-error Ignore missing type declarations for the ai SDK
+// @ts-expect-error ai typings
 import { streamText, CoreMessage, OnFinishResult, experimental_generateImage as generateImage, tool } from 'ai';
 import { auth } from '@clerk/nextjs/server';
 import dbConnect from '@/lib/db';
@@ -170,11 +170,15 @@ export async function POST(req: NextRequest) {
           return { image: image.base64, prompt };
         },
       }),
+      // OpenAI built-in web search tool
+      web_search_preview: openai.tools.webSearchPreview({
+        searchContextSize: 'high',
+      }),
     } as const;
 
-    // Generate AI response
+    // Use OpenAI responses model to enable tool calling
     const result = streamText({
-      model: openai(modelIdentifier),
+      model: openai.responses('gpt-4o-mini'),
       messages: messagesWithMemory,
       tools,
       onFinish: async (result: OnFinishResult) => {
@@ -201,7 +205,6 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    // Return generic data stream response (includes tool invocation events)
     return result.toDataStreamResponse();
   } catch (error) {
     console.error('Chat API error:', error);

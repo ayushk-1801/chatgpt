@@ -7,7 +7,7 @@ import { PromptBox } from "@/components/ui/chatgpt-prompt-input";
 import { MessageFormatter } from "@/components/ui/message-formatter";
 import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
-import { Copy, ThumbsUp, ThumbsDown, Volume2, Edit, RefreshCw, Download, FileText } from "lucide-react";
+import { Copy, ThumbsUp, ThumbsDown, Volume2, Edit, RefreshCw, Download, FileText, Check } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useModel } from "@/hooks/use-model";
 
@@ -53,19 +53,21 @@ export default function ChatPage() {
   type ChatMessage = typeof messages extends Array<infer T> ? T : never;
   const chatMemoryCache: Record<string, ChatMessage[]> = {};
 
-  function getCachedMessages(slug: string): ChatMessage[] | null {
+  const getCachedMessages = (slug: string): ChatMessage[] | null => {
     // Only use in-memory cache to avoid localStorage quota issues
     return chatMemoryCache[slug] ?? null;
-  }
+  };
 
-  function setCachedMessages(slug: string, messages: ChatMessage[]) {
+  const setCachedMessages = (slug: string, messages: ChatMessage[]) => {
     // Store messages only in the in-memory cache
     chatMemoryCache[slug] = messages;
-  }
+  };
   // --- End cache utility ---
 
   const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const [filePreview, setFilePreview] = useState<FilePreview | null>(null);
+  const [messageRatings, setMessageRatings] = useState<Record<string, 'good' | 'bad'>>({});
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
   // Load existing messages when the page loads
@@ -184,6 +186,24 @@ export default function ChatPage() {
     }
   };
 
+  const handleCopyMessage = async (messageId: string, content: string) => {
+    try {
+      await navigator.clipboard.writeText(content);
+      setCopiedMessageId(messageId);
+      // Reset the copied state after 2 seconds
+      setTimeout(() => setCopiedMessageId(null), 2000);
+    } catch (err) {
+      console.error('Failed to copy message:', err);
+    }
+  };
+
+  const handleRateMessage = (messageId: string, rating: 'good' | 'bad') => {
+    setMessageRatings(prev => ({
+      ...prev,
+      [messageId]: rating
+    }));
+  };
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() && !(filePreview && filePreview.uploadStatus === 'success')) return;
@@ -258,18 +278,72 @@ export default function ChatPage() {
 
                   const hasAttachment = imageUrl || fileInfo;
 
-                  // Render content from tool invocations (e.g., generated images)
+                  // Render content from tool invocations (images, web search, etc.)
                   const toolElements = Array.isArray((message as any).toolInvocations)
                     ? (message as any).toolInvocations
-                        .filter((ti: any) => ti.toolName === 'generateImage' && ti.state === 'result')
-                        .map((ti: any) => (
-                          <img
-                            key={ti.toolCallId}
-                            src={`data:image/png;base64,${ti.result.image}`}
-                            alt={ti.result.prompt}
-                            className="mb-2 rounded-sm max-w-xs object-contain"
-                          />
-                        ))
+                        .map((ti: any) => {
+                          if (ti.toolName === 'generateImage') {
+                            if (ti.state === 'result') {
+                              return (
+                                <img
+                                  key={ti.toolCallId}
+                                  src={`data:image/png;base64,${ti.result.image}`}
+                                  alt={ti.result.prompt}
+                                  className="mb-2 rounded-sm max-w-xs object-contain"
+                                />
+                              );
+                            }
+                            return (
+                              <div key={ti.toolCallId} className="mb-2 animate-pulse text-gray-400">
+                                Generating image...
+                              </div>
+                            );
+                          }
+
+                          if (ti.toolName === 'web_search_preview') {
+                            if (ti.state === 'result') {
+                              // Vercel AI SDK returns `sources` array; fall back to `results` for legacy shape
+                              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                              const sources = (ti.result.sources || ti.result.results || []) as Array<any>;
+
+                              return (
+                                <div key={ti.toolCallId} className="mb-2 flex flex-wrap gap-2 max-w-xl">
+                                  {sources.map((src, idx) => {
+                                    // Determine URL field – different shapes are possible
+                                    const rawUrl: string = src.url || src.link || src;
+                                    let domain = rawUrl;
+                                    try {
+                                      const hostname = new URL(rawUrl).hostname;
+                                      domain = hostname.replace(/^www\./, '');
+                                    } catch {
+                                      // If URL parsing fails, just show as-is (unlikely)
+                                    }
+
+                                    return (
+                                      <a
+                                        key={`${domain}-${idx}`}
+                                        href={rawUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="bg-neutral-700/60 hover:bg-neutral-600 rounded-full px-3 py-1 text-sm text-neutral-200"
+                                      >
+                                        {domain}
+                                      </a>
+                                    );
+                                  })}
+                                </div>
+                              );
+                            }
+                            return (
+                              <div key={ti.toolCallId} className="mb-2 animate-pulse text-gray-400">
+                                Searching the web...
+                              </div>
+                            );
+                          }
+
+                          return null;
+                        })
+                        .filter(Boolean)
                     : null;
 
                   return (
@@ -333,42 +407,52 @@ export default function ChatPage() {
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <button
-                                        onClick={() => navigator.clipboard.writeText(message.content)}
+                                        onClick={() => handleCopyMessage(message.id, message.content)}
                                         className="p-1.5 rounded-md hover:bg-neutral-700 text-gray-200 hover:text-white transition-colors"
                                       >
-                                        <Copy size={16} />
+                                        {copiedMessageId === message.id ? (
+                                          <Check size={16} />
+                                        ) : (
+                                          <Copy size={16} />
+                                        )}
                                       </button>
                                     </TooltipTrigger>
                                     <TooltipContent side="bottom">
-                                      <p>Copy message</p>
+                                      <p>{copiedMessageId === message.id ? 'Copied!' : 'Copy message'}</p>
                                     </TooltipContent>
                                   </Tooltip>
                                   
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <button
-                                        className="p-1.5 rounded-md hover:bg-neutral-700 text-gray-200 hover:text-white transition-colors"
-                                      >
-                                        <ThumbsUp size={16} />
-                                      </button>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="bottom">
-                                      <p>Good response</p>
-                                    </TooltipContent>
-                                  </Tooltip>
+                                  {messageRatings[message.id] !== 'bad' && (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <button
+                                          onClick={() => handleRateMessage(message.id, 'good')}
+                                          className="p-1.5 rounded-md hover:bg-neutral-700 text-gray-200 hover:text-white transition-colors"
+                                        >
+                                          <ThumbsUp size={16} fill={messageRatings[message.id] === 'good' ? 'currentColor' : 'none'} />
+                                        </button>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="bottom">
+                                        <p>Good response</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  )}
                                   
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <button
-                                        className="p-1.5 rounded-md hover:bg-neutral-700 text-gray-200 hover:text-white transition-colors"
-                                      >
-                                        <ThumbsDown size={16} />
-                                      </button>
-                                    </TooltipTrigger>
-                                    <TooltipContent side="bottom">
-                                      <p>Bad response</p>
-                                    </TooltipContent>
-                                  </Tooltip>
+                                  {messageRatings[message.id] !== 'good' && (
+                                    <Tooltip>
+                                      <TooltipTrigger asChild>
+                                        <button
+                                          onClick={() => handleRateMessage(message.id, 'bad')}
+                                          className="p-1.5 rounded-md hover:bg-neutral-700 text-gray-200 hover:text-white transition-colors"
+                                        >
+                                          <ThumbsDown size={16} fill={messageRatings[message.id] === 'bad' ? 'currentColor' : 'none'} />
+                                        </button>
+                                      </TooltipTrigger>
+                                      <TooltipContent side="bottom">
+                                        <p>Bad response</p>
+                                      </TooltipContent>
+                                    </Tooltip>
+                                  )}
                                   
                                   <Tooltip>
                                     <TooltipTrigger asChild>
@@ -432,14 +516,18 @@ export default function ChatPage() {
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <button
-                                        onClick={() => navigator.clipboard.writeText(message.content)}
+                                        onClick={() => handleCopyMessage(message.id, message.content)}
                                         className="p-1.5 rounded-md hover:bg-neutral-600 text-gray-200 hover:text-white transition-colors"
                                       >
-                                        <Copy size={16} />
+                                        {copiedMessageId === message.id ? (
+                                          <Check size={16} />
+                                        ) : (
+                                          <Copy size={16} />
+                                        )}
                                       </button>
                                     </TooltipTrigger>
                                     <TooltipContent side="bottom">
-                                      <p>Copy message</p>
+                                      <p>{copiedMessageId === message.id ? 'Copied!' : 'Copy message'}</p>
                                     </TooltipContent>
                                   </Tooltip>
                                   
