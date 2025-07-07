@@ -12,7 +12,7 @@ export const MessageFormatter: React.FC<MessageFormatterProps> = ({
   className 
 }) => {
   return (
-    <div className={cn("text-gray-100 max-w-none", className)}>
+    <div className={cn("text-foreground max-w-none", className)}>
       <MarkdownMessage content={content} />
     </div>
   );

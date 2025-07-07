@@ -36,7 +36,7 @@ export default function Home() {
     <div className="flex min-h-screen w-full flex-col items-center justify-center bg-background dark:bg-[#212121] p-4">
       <div className="w-full max-w-3xl flex flex-col gap-10 mb-80">
         <div className="text-center">
-          <p className="text-2xl text-muted-foreground dark:text-gray-200">
+          <p className="text-2xl text-foreground">
             How Can I Help You Today?
           </p>
         </div>

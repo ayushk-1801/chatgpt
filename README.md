@@ -1,36 +1,47 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ✅ ChatGPT Clone - To-Do List
 
-## Getting Started
+## 🧑‍💻 Frontend (UI/UX)
+- [x] Design pixel-perfect ChatGPT clone layout
+- [x] Match ChatGPT animations, spacing, modals, and scrolling
+- [x] Ensure full mobile responsiveness (Responsive design)
+- [ ] Implement accessibility (ARIA-compliant)
+- [ ] Add message editing (allow users to edit and regenerate messages)
 
-First, run the development server:
+## 🔌 Core Chat Functionality (Vercel AI SDK)
+- [x] Integrate Vercel AI SDK for chat responses
+- [x] Implement streaming message responses
+- [ ] Add context window handling for model token limits
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## 🧠 Memory / Conversation Context
+- [x] Add memory capability (using `mem()` from Vercel AI SDK)
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 📂 File & Image Upload Support
+- [x] Build upload UI for:
+  - [x] Images (PNG, JPG, etc.)
+  - [x] Documents (PDF, DOCX, TXT, etc.)
+- [x] Integrate file upload to Cloudinary or Uploadcare
+- [ ] Allow AI model to access uploaded files
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## 🛡️ Backend Development
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### API Architecture
+- [x] Set up Next.js API routes as the backend
+- [ ] Manage token limits per model constraints (e.g., GPT-4 Turbo context window)
 
-## Learn More
+### File Storage
+- [x] Integrate Cloudinary or Uploadcare for file storage
 
-To learn more about Next.js, take a look at the following resources:
+### Webhook Support
+- [ ] Add webhook support for external service callbacks
+    - e.g., file transformation triggers, background tasks
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🚀 Deployment
+- [ ] Deploy the app on Vercel
+- [ ] Configure environment variables (Vercel AI SDK, MongoDB, Cloudinary, etc.)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## ✅ Deliverables Checklist
+- [x] Pixel-perfect ChatGPT clone UI
+- [x] Fully functional chat using Vercel AI SDK
+- [ ] Chat memory, file/image upload, message editing support
+- [x] Backend with MongoDB, Cloudinary integration
+- [ ] Successfully deployed on Vercel

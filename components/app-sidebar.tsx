@@ -68,26 +68,40 @@ export function AppSidebar() {
   const { user } = useUser();
   const router = useRouter();
 
-  // Fetch chats from database
-  React.useEffect(() => {
-    const fetchChats = async () => {
-      if (!user) return;
-      
-      try {
-        const response = await fetch('/api/chats');
-        if (response.ok) {
-          const chatData = await response.json();
-          setChats(chatData);
-        }
-      } catch (error) {
-        console.error('Error fetching chats:', error);
-      } finally {
-        setIsLoading(false);
+  const fetchChats = React.useCallback(async () => {
+    if (!user) return;
+    
+    try {
+      setIsLoading(true);
+      const response = await fetch('/api/chats');
+      if (response.ok) {
+        const chatData = await response.json();
+        setChats(chatData);
       }
+    } catch (error) {
+      console.error('Error fetching chats:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user]);
+
+  // Fetch chats from database on initial load
+  React.useEffect(() => {
+    fetchChats();
+  }, [fetchChats]);
+
+  // Listen for title updates to refresh the chat list
+  React.useEffect(() => {
+    const handleTitleUpdate = () => {
+      fetchChats();
     };
 
-    fetchChats();
-  }, [user]);
+    window.addEventListener('chat-title-updated', handleTitleUpdate);
+
+    return () => {
+      window.removeEventListener('chat-title-updated', handleTitleUpdate);
+    };
+  }, [fetchChats]);
 
   const handleNewChat = () => {
     // Generate a random slug for new chat
@@ -110,14 +124,14 @@ export function AppSidebar() {
     <Sidebar
       variant="sidebar"
       collapsible="icon"
-      className="border-none bg-neutral-900 text-white"
+      className="border-none bg-sidebar text-sidebar-foreground"
     >
       <SidebarHeader className="">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Image src="/logo.svg" alt="logo" width={24} height={24} className="text-white dark:invert" />
+            <Image src="/logo.svg" alt="logo" width={24} height={24} className="dark:invert" />
           </div>
-          <SidebarTrigger className="text-muted-foreground hover:text-white" />
+          <SidebarTrigger className="text-sidebar-foreground/60 hover:text-sidebar-foreground" />
         </div>
       </SidebarHeader>
 
@@ -134,7 +148,7 @@ export function AppSidebar() {
                       item.action();
                     }}
                     tooltip={item.title}
-                    className="w-full text-white hover:bg-neutral-800 data-[active=true]:bg-neutral-800 focus:bg-neutral-800"
+                    className="w-full text-sidebar-foreground hover:bg-sidebar-accent data-[active=true]:bg-sidebar-accent focus:bg-sidebar-accent"
                   >
                     <item.icon />
                     <span>{item.title}</span>
@@ -154,7 +168,7 @@ export function AppSidebar() {
                     isActive={activeItem === item.title}
                     onClick={() => setActiveItem(item.title)}
                     tooltip={item.title}
-                    className="w-full text-white hover:bg-neutral-800 data-[active=true]:bg-neutral-800 focus:bg-neutral-800"
+                    className="w-full text-sidebar-foreground hover:bg-sidebar-accent data-[active=true]:bg-sidebar-accent focus:bg-sidebar-accent"
                   >
                     <item.icon />
                     <span>{item.title}</span>
@@ -165,20 +179,20 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
         <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-          <SidebarGroupLabel className="text-neutral-400 text-xs font-medium px-2 py-1">
+          <SidebarGroupLabel className="text-sidebar-foreground/60 text-xs font-medium px-2 py-1">
             Chats
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {isLoading ? (
                 <SidebarMenuItem>
-                  <div className="px-2 py-1 text-sm text-neutral-400">
+                  <div className="px-2 py-1 text-sm text-sidebar-foreground/60">
                     Loading chats...
                   </div>
                 </SidebarMenuItem>
               ) : chats.length === 0 ? (
                 <SidebarMenuItem>
-                  <div className="px-2 py-1 text-sm text-neutral-400">
+                  <div className="px-2 py-1 text-sm text-sidebar-foreground/60">
                     No chats yet
                   </div>
                 </SidebarMenuItem>
@@ -188,7 +202,7 @@ export function AppSidebar() {
                     <SidebarMenuButton
                       isActive={activeItem === `chat-${chat._id}`}
                       onClick={() => handleChatClick(chat)}
-                      className="w-full justify-start text-white hover:bg-neutral-800 data-[active=true]:bg-neutral-800 p-2 focus:bg-neutral-800"
+                      className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent data-[active=true]:bg-sidebar-accent p-2 focus:bg-sidebar-accent"
                     >
                       <span className="text-sm truncate w-full text-left">
                         {chat.title}
@@ -202,19 +216,19 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-neutral-800">
+      <SidebarFooter className="border-sidebar-border">
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton
               isActive={activeItem === "Upgrade plan"}
               onClick={() => setActiveItem("Upgrade plan")}
               tooltip="Upgrade plan"
-              className="w-full text-white hover:bg-neutral-800 data-[active=true]:bg-neutral-800 focus:bg-neutral-800"
+              className="w-full text-sidebar-foreground hover:bg-sidebar-accent data-[active=true]:bg-sidebar-accent focus:bg-sidebar-accent"
             >
               <Crown />
               <div className="flex flex-col items-start">
                 <span className="text-sm font-medium">Upgrade plan</span>
-                <span className="text-xs text-neutral-400">
+                <span className="text-xs text-sidebar-foreground/60">
                   More access to the best models
                 </span>
               </div>

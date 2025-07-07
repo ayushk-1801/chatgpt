@@ -74,7 +74,7 @@ export function MarkdownMessage({ content, className }: MarkdownMessageProps) {
               return (
                 <code
                   {...props}
-                  className="bg-neutral-600 rounded-sm mx-0.5 px-1 py-0.5 font-mono text-sm"
+                  className="bg-muted rounded-sm mx-0.5 px-1 py-0.5 font-mono text-sm"
                 >
                   {children}
                 </code>
@@ -92,7 +92,7 @@ export function MarkdownMessage({ content, className }: MarkdownMessageProps) {
             );
           },
           blockquote: ({ children }) => (
-            <blockquote className="text-muted-foreground mb-4 border-l-4 border-neutral-600 pl-4 italic">
+            <blockquote className="text-muted-foreground mb-4 border-l-4 border-border pl-4 italic">
               {children}
             </blockquote>
           ),
@@ -114,26 +114,26 @@ export function MarkdownMessage({ content, className }: MarkdownMessageProps) {
             />
           ),
           table: ({ children }) => (
-            <div className="mb-4 overflow-x-auto rounded-lg border border-neutral-700">
-              <table className="min-w-full divide-y divide-neutral-700">
+            <div className="mb-4 overflow-x-auto rounded-lg border border-border">
+              <table className="min-w-full divide-y divide-border">
                 {children}
               </table>
             </div>
           ),
           thead: ({ children }) => (
-            <thead className="bg-neutral-800/50">{children}</thead>
+            <thead className="bg-muted/50">{children}</thead>
           ),
           th: ({ children }) => (
-            <th className="px-4 py-2 text-left font-medium text-neutral-200">
+            <th className="px-4 py-2 text-left font-medium text-foreground">
               {children}
             </th>
           ),
           td: ({ children }) => (
-            <td className="border-t border-neutral-700 px-4 py-2 text-neutral-300">
+            <td className="border-t border-border px-4 py-2 text-muted-foreground">
               {children}
             </td>
           ),
-          hr: () => <hr className="my-6 border-t border-neutral-700" />,
+          hr: () => <hr className="my-6 border-t border-border" />,
         }}
       >
         {processedContent}

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useTheme } from "next-themes";
 import {
   Dialog,
   DialogContent,
@@ -23,7 +24,6 @@ import {
   Grid3x3,
   Shield,
   Database,
-  X,
   Play,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -45,7 +45,7 @@ const settingsCategories = [
 export function SettingsDialog({ children }: SettingsDialogProps) {
   const [isOpen, setIsOpen] = React.useState(false);
   const [activeCategory, setActiveCategory] = React.useState("general");
-  const [theme, setTheme] = React.useState("system");
+  const { theme, setTheme } = useTheme();
   const [language, setLanguage] = React.useState("auto-detect");
   const [voice, setVoice] = React.useState("maple");
   const [followUpSuggestions, setFollowUpSuggestions] = React.useState(true);
@@ -60,7 +60,7 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
         <label className="text-sm font-medium">Theme</label>
         <Select value={theme} onValueChange={setTheme}>
           <SelectTrigger className="w-32">
-            <SelectValue />
+            <SelectValue placeholder="Select theme" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="system">System</SelectItem>
@@ -309,19 +309,12 @@ export function SettingsDialog({ children }: SettingsDialogProps) {
       <DialogTrigger asChild>
         {children}
       </DialogTrigger>
-      <DialogContent className="w-5xl h-[600px] p-0 bg-white dark:bg-[#303030]">
+      <DialogContent className="!max-w-6xl w-2xl h-[600px] p-0 bg-white dark:bg-[#303030] rounded-2xl">
         <div className="flex h-full">
           {/* Sidebar */}
           <div className="w-48 bg-gray-50 dark:bg-[#2a2a2a] p-1.5  rounded-l-xl">
             <div className="flex items-center justify-between mb-6 pt-2 pl-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                onClick={() => handleOpenChange(false)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
+              Settings
             </div>
             
             <nav className="space-y-1">

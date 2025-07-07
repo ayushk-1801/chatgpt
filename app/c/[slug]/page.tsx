@@ -10,6 +10,7 @@ import { useParams } from "next/navigation";
 import { Copy, ThumbsUp, ThumbsDown, Volume2, Edit, RefreshCw, Download, FileText, Check } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useModel } from "@/hooks/use-model";
+import { v4 as uuidv4 } from 'uuid';
 
 interface DatabaseMessage {
   _id: string;
@@ -31,6 +32,7 @@ export default function ChatPage() {
   const params = useParams();
   const slug = params.slug as string;
   const { selectedModel } = useModel();
+  const initialMessageRef = useRef<string | null>(null);
 
   const {
     messages,
@@ -46,6 +48,22 @@ export default function ChatPage() {
     body: {
       chatId: slug, // Pass chatId to the API
       model: selectedModel,
+    },
+    onFinish: async () => {
+      if (initialMessageRef.current) {
+        try {
+          await fetch('/api/chats/title', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chatId: slug, message: initialMessageRef.current }),
+          });
+          window.dispatchEvent(new CustomEvent('chat-title-updated'));
+        } catch (error) {
+          console.error("Failed to generate chat title:", error);
+        } finally {
+          initialMessageRef.current = null; // Clear after use
+        }
+      }
     },
   });
 
@@ -70,6 +88,15 @@ export default function ChatPage() {
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
+  // Branching conversation state
+  const [branches, setBranches] = useState<ChatMessage[][]>([]);
+  const [activeBranchIndex, setActiveBranchIndex] = useState(0);
+  const [branchPivot, setBranchPivot] = useState<number | null>(null);
+
+  // Track inline editing
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editingText, setEditingText] = useState<string>('');
+
   // Load existing messages when the page loads
   useEffect(() => {
     let didCancel = false;
@@ -79,6 +106,8 @@ export default function ChatPage() {
       if (cached && cached.length > 0) {
         setMessages(cached);
         setIsLoadingHistory(false);
+        // Initialize branches on first load
+        setBranches([cached]);
         return;
       }
       try {
@@ -96,6 +125,8 @@ export default function ChatPage() {
           if (!didCancel) {
             setMessages(uiMessages);
             setCachedMessages(slug, uiMessages);
+            // Initialize branches on first load
+            setBranches([uiMessages]);
           }
         }
       } catch (error) {
@@ -120,6 +151,7 @@ export default function ChatPage() {
     const initialMessage = sessionStorage.getItem("initialMessage");
     if (initialMessage && messages.length === 0 && !isLoadingHistory) {
       sessionStorage.removeItem("initialMessage");
+      initialMessageRef.current = initialMessage;
 
       // Auto-submit the initial message
       append({
@@ -135,6 +167,15 @@ export default function ChatPage() {
       setCachedMessages(slug, messages);
     }
   }, [messages, isLoadingHistory, slug]);
+
+  // Keep active branch array in sync with messages
+  useEffect(() => {
+    setBranches(prev => {
+      const copy = [...prev];
+      copy[activeBranchIndex] = messages;
+      return copy;
+    });
+  }, [messages]);
 
   const handleFileChange = async (file: File) => {
     const localUrl = URL.createObjectURL(file);
@@ -204,6 +245,90 @@ export default function ChatPage() {
     }));
   };
 
+  const handleEditUserMessage = (messageIndex: number) => {
+    const msg = messages[messageIndex];
+    if (!msg || msg.role !== 'user') return;
+
+    // Start inline editing
+    setEditingIndex(messageIndex);
+    setEditingText(typeof msg.content === 'string' ? msg.content : '');
+  };
+
+  const cancelEditing = () => {
+    setEditingIndex(null);
+    setEditingText('');
+  };
+
+  const saveEditedMessage = async () => {
+    if (editingIndex === null) return;
+    const base = messages.slice(0, editingIndex); // messages before the edited message
+    const newUserMessage: ChatMessage = {
+      id: uuidv4(),
+      role: 'user',
+      content: editingText,
+      createdAt: new Date(),
+    } as ChatMessage;
+
+    const newBranch = [...base, newUserMessage];
+
+    // Create new branch and switch to it
+    setBranchPivot(editingIndex);
+    setBranches(prev => [...prev, newBranch]);
+    const newBranchIndex = branches.length; // index of the branch we're adding
+    setActiveBranchIndex(newBranchIndex);
+    setMessages(newBranch);
+    setCachedMessages(slug, newBranch);
+
+    // Send new user message to backend to generate assistant response
+    await append({
+      content: editingText,
+      role: 'user',
+    });
+
+    setEditingIndex(null);
+    setEditingText('');
+  };
+
+  const handleRegenerateAssistant = async (assistantIndex: number) => {
+    const msg = messages[assistantIndex];
+    if (!msg || msg.role !== 'assistant') return;
+
+    const kept = messages.slice(0, assistantIndex); // exclude assistant message to regenerate
+
+    // Branch point is the user message just before assistantIndex
+    const pivot = assistantIndex - 1;
+    setBranchPivot(pivot);
+
+    setBranches(prev => [...prev, kept]);
+    const newBranchIndex = branches.length;
+    setActiveBranchIndex(newBranchIndex);
+    setMessages(kept);
+    setCachedMessages(slug, kept);
+
+    const lastUserMessage = kept[kept.length - 1];
+    if (lastUserMessage && lastUserMessage.role === 'user') {
+      await append({
+        content: typeof lastUserMessage.content === 'string' ? lastUserMessage.content : '',
+        role: 'user',
+      });
+    }
+  };
+
+  const switchBranch = (direction: 'prev' | 'next') => {
+    if (branchPivot === null) return;
+    const total = branches.length;
+    if (direction === 'prev' && activeBranchIndex > 0) {
+      const idx = activeBranchIndex - 1;
+      setActiveBranchIndex(idx);
+      setMessages(branches[idx]);
+    }
+    if (direction === 'next' && activeBranchIndex < total - 1) {
+      const idx = activeBranchIndex + 1;
+      setActiveBranchIndex(idx);
+      setMessages(branches[idx]);
+    }
+  };
+
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() && !(filePreview && filePreview.uploadStatus === 'success')) return;
@@ -229,8 +354,37 @@ export default function ChatPage() {
     handleRemoveFile();
   };
 
+  // Rendering for message editing textarea inside message bubble
+  const renderEditingArea = () => {
+    return (
+      <div className="flex flex-col gap-2 w-full p-3">
+        <textarea
+          className="w-full rounded-md p-2 resize-none focus:outline-none"
+          value={editingText}
+          onChange={e => setEditingText(e.target.value)}
+        />
+        <div className="flex gap-2 ml-auto">
+          <button
+            type="button"
+            className="px-3 py-2 rounded-full bg-muted hover:bg-muted/70 text-sm"
+            onClick={cancelEditing}
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="px-3 py-2 rounded-full bg-primary text-primary-foreground text-sm"
+            onClick={saveEditedMessage}
+          >
+            Send
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
-    <div className="flex h-screen bg-[#212121] text-white overflow-hidden">
+    <div className="flex h-screen bg-background dark:bg-[#212121] text-foreground overflow-hidden">
       <div className="flex-1 flex flex-col w-full mx-auto w-full relative">
         {/* Messages Area - Scrollable with fixed height */}
         <div className="flex-1 overflow-hidden">
@@ -294,7 +448,7 @@ export default function ChatPage() {
                               );
                             }
                             return (
-                              <div key={ti.toolCallId} className="mb-2 animate-pulse text-gray-400">
+                              <div key={ti.toolCallId} className="mb-2 animate-pulse text-muted-foreground">
                                 Generating image...
                               </div>
                             );
@@ -325,7 +479,7 @@ export default function ChatPage() {
                                         href={rawUrl}
                                         target="_blank"
                                         rel="noopener noreferrer"
-                                        className="bg-neutral-700/60 hover:bg-neutral-600 rounded-full px-3 py-1 text-sm text-neutral-200"
+                                        className="bg-muted/60 hover:bg-muted rounded-full px-3 py-1 text-sm text-muted-foreground"
                                       >
                                         {domain}
                                       </a>
@@ -335,7 +489,7 @@ export default function ChatPage() {
                               );
                             }
                             return (
-                              <div key={ti.toolCallId} className="mb-2 animate-pulse text-gray-400">
+                              <div key={ti.toolCallId} className="mb-2 animate-pulse text-muted-foreground">
                                 Searching the web...
                               </div>
                             );
@@ -345,6 +499,19 @@ export default function ChatPage() {
                         })
                         .filter(Boolean)
                     : null;
+
+                  const isEditing = index === editingIndex;
+
+                  if (isEditing && message.role === 'user') {
+                    // Render standalone full-width editing container
+                    return (
+                      <div key={message.id} className="w-full">
+                        <div className="bg-muted/50 dark:bg-neutral-700/40 text-foreground rounded-3xl w-full">
+                          {renderEditingArea()}
+                        </div>
+                      </div>
+                    );
+                  }
 
                   return (
                     <div key={message.id} className="group">
@@ -372,11 +539,11 @@ export default function ChatPage() {
 
                             {fileInfo && (
                               <a href={fileInfo.url} target="_blank" rel="noopener noreferrer" className="mb-2">
-                                <div className="flex items-center gap-3 rounded-xl bg-neutral-700/50 p-3 max-w-xs hover:bg-neutral-700 transition-colors">
-                                  <FileText className="h-8 w-8 text-white flex-shrink-0" />
+                                <div className="flex items-center gap-3 rounded-xl bg-muted/50 p-3 max-w-xs hover:bg-muted transition-colors">
+                                  <FileText className="h-8 w-8 text-foreground flex-shrink-0" />
                                   <div className="flex flex-col overflow-hidden">
-                                    <span className="text-white font-medium truncate">{fileInfo.name}</span>
-                                    <span className="text-neutral-300 text-sm">{fileInfo.type.split('/')[1]?.toUpperCase() || 'File'}</span>
+                                    <span className="text-foreground font-medium truncate">{fileInfo.name}</span>
+                                    <span className="text-muted-foreground text-sm">{fileInfo.type.split('/')[1]?.toUpperCase() || 'File'}</span>
                                   </div>
                                 </div>
                               </a>
@@ -389,8 +556,8 @@ export default function ChatPage() {
                               <div
                                 className={`${
                                   message.role === "user"
-                                    ? `px-4 bg-neutral-700/50 text-white rounded-3xl ${hasAttachment ? 'rounded-tr-sm' : ''}`
-                                    : "text-gray-100 rounded-xl"
+                                    ? `px-4 bg-muted/50 dark:bg-neutral-700/40 text-foreground rounded-3xl ${hasAttachment ? 'rounded-tr-sm' : ''}`
+                                    : "text-foreground rounded-xl"
                                 } py-3`}
                               >
                                 <MessageFormatter 
@@ -408,7 +575,7 @@ export default function ChatPage() {
                                     <TooltipTrigger asChild>
                                       <button
                                         onClick={() => handleCopyMessage(message.id, message.content)}
-                                        className="p-1.5 rounded-md hover:bg-neutral-700 text-gray-200 hover:text-white transition-colors"
+                                        className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                                       >
                                         {copiedMessageId === message.id ? (
                                           <Check size={16} />
@@ -427,7 +594,7 @@ export default function ChatPage() {
                                       <TooltipTrigger asChild>
                                         <button
                                           onClick={() => handleRateMessage(message.id, 'good')}
-                                          className="p-1.5 rounded-md hover:bg-neutral-700 text-gray-200 hover:text-white transition-colors"
+                                          className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                                         >
                                           <ThumbsUp size={16} fill={messageRatings[message.id] === 'good' ? 'currentColor' : 'none'} />
                                         </button>
@@ -443,7 +610,7 @@ export default function ChatPage() {
                                       <TooltipTrigger asChild>
                                         <button
                                           onClick={() => handleRateMessage(message.id, 'bad')}
-                                          className="p-1.5 rounded-md hover:bg-neutral-700 text-gray-200 hover:text-white transition-colors"
+                                          className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                                         >
                                           <ThumbsDown size={16} fill={messageRatings[message.id] === 'bad' ? 'currentColor' : 'none'} />
                                         </button>
@@ -457,7 +624,7 @@ export default function ChatPage() {
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <button
-                                        className="p-1.5 rounded-md hover:bg-neutral-700 text-gray-200 hover:text-white transition-colors"
+                                        className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                                       >
                                         <Volume2 size={16} />
                                       </button>
@@ -470,7 +637,8 @@ export default function ChatPage() {
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <button
-                                        className="p-1.5 rounded-md hover:bg-neutral-700 text-gray-200 hover:text-white transition-colors"
+                                        className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                                        onClick={() => handleEditUserMessage(index)}
                                       >
                                         <Edit size={16} />
                                       </button>
@@ -483,7 +651,8 @@ export default function ChatPage() {
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <button
-                                        className="p-1.5 rounded-md hover:bg-neutral-700 text-gray-200 hover:text-white transition-colors"
+                                        className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                                        onClick={() => handleRegenerateAssistant(index)}
                                       >
                                         <RefreshCw size={16} />
                                       </button>
@@ -496,7 +665,7 @@ export default function ChatPage() {
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <button
-                                        className="p-1.5 rounded-md hover:bg-neutral-700 text-gray-200 hover:text-white transition-colors"
+                                        className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                                       >
                                         <Download size={16} />
                                       </button>
@@ -505,19 +674,42 @@ export default function ChatPage() {
                                       <p>Download</p>
                                     </TooltipContent>
                                   </Tooltip>
+
+                                  {/* Branch navigation for pivot message */}
+                                  {branchPivot === index && branches.length > 1 && (
+                                    <div className="flex items-center gap-1 text-xs text-muted-foreground ml-1">
+                                      <button
+                                        type="button"
+                                        onClick={() => switchBranch('prev')}
+                                        disabled={activeBranchIndex === 0}
+                                        className="p-1 rounded-md hover:bg-muted disabled:opacity-40"
+                                      >
+                                        &lt;
+                                      </button>
+                                      <span>{activeBranchIndex + 1}/{branches.length}</span>
+                                      <button
+                                        type="button"
+                                        onClick={() => switchBranch('next')}
+                                        disabled={activeBranchIndex === branches.length - 1}
+                                        className="p-1 rounded-md hover:bg-muted disabled:opacity-40"
+                                      >
+                                        &gt;
+                                      </button>
+                                    </div>
+                                  )}
                                 </div>
                               </TooltipProvider>
                             )}
 
                             {/* Action buttons for user messages - only on hover */}
-                            {message.role === "user" && (
+                            {message.role === "user" && !isEditing && (
                               <TooltipProvider delayDuration={100}>
                                 <div className="flex items-center justify-end gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <button
                                         onClick={() => handleCopyMessage(message.id, message.content)}
-                                        className="p-1.5 rounded-md hover:bg-neutral-600 text-gray-200 hover:text-white transition-colors"
+                                        className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                                       >
                                         {copiedMessageId === message.id ? (
                                           <Check size={16} />
@@ -534,7 +726,8 @@ export default function ChatPage() {
                                   <Tooltip>
                                     <TooltipTrigger asChild>
                                       <button
-                                        className="p-1.5 rounded-md hover:bg-neutral-600 text-gray-200 hover:text-white transition-colors"
+                                        className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                                        onClick={() => handleEditUserMessage(index)}
                                       >
                                         <Edit size={16} />
                                       </button>
@@ -550,14 +743,14 @@ export default function ChatPage() {
                         </div>
                       </div>
                     </div>
-                  )
+                  );
                 })
               )}
 
               {/* Typing indicator */}
               {(isLoading || isLoadingHistory) && (
                 <div className="flex gap-4 justify-start">
-                  <div className="w-3 h-3 bg-gray-500 rounded-full animate-pulse"></div>
+                  <div className="w-3 h-3 bg-muted-foreground rounded-full animate-pulse"></div>
                 </div>
               )}
             </div>
@@ -565,7 +758,7 @@ export default function ChatPage() {
         </div>
 
         {/* Fixed Input Area at Bottom */}
-        <div className="absolute bottom-0 left-0 right-0 bg-[#212121] py-2 pt-0 border-gray-600/30">
+        <div className="absolute bottom-0 left-0 right-0 bg-background dark:bg-[#212121] py-2 pt-0 border-border/30">
           <div className="max-w-3xl mx-auto">
             <form onSubmit={onSubmit}>
               <PromptBox
@@ -574,7 +767,7 @@ export default function ChatPage() {
                 onChange={handleInputChange}
                 disabled={isLoading}
                 placeholder="Ask anything"
-                className="bg-gray-800 border-gray-600 text-white"
+                className="bg-muted border-border text-foreground"
                 onFileChange={handleFileChange}
                 onRemoveFile={handleRemoveFile}
                 filePreview={filePreview}
@@ -583,7 +776,7 @@ export default function ChatPage() {
 
             {/* Footer text */}
             <div className="text-center mt-2">
-              <p className="text-xs text-gray-300">
+              <p className="text-xs text-muted-foreground">
                 ChatGPT can make mistakes. Check important info.
               </p>
             </div>

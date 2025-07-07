@@ -102,7 +102,7 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
     const ActiveToolIcon = activeTool?.icon;
 
     return (
-      <div className={cn("mx-2 flex flex-col rounded-[28px] p-2 shadow-sm transition-colors bg-white border dark:bg-[#303030] dark:border-transparent cursor-text", className)}>
+      <div className={cn("mx-2 flex flex-col rounded-[28px] p-2 shadow-sm transition-colors bg-white border border-background dark:bg-[#303030] dark:border-transparent cursor-text", className)}>
         <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
         
         {filePreview && (
@@ -214,7 +214,7 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
                 <Tooltip>
                   <TooltipTrigger asChild>
                     <button type="submit" disabled={!hasValue} className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none bg-black text-white hover:bg-black/80 dark:bg-white dark:text-black dark:hover:bg-white/80 disabled:bg-black/40 dark:disabled:bg-[#515151]">
-                      <SendIcon className="h-6 w-6 text-bold text-white border dark:text-[#303030]" />
+                      <SendIcon className="h-6 w-6 text-bold text-white dark:text-[#303030]" />
                       <span className="sr-only">Send message</span>
                     </button>
                   </TooltipTrigger>
