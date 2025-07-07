@@ -135,84 +135,89 @@ export function AppSidebar() {
         </div>
       </SidebarHeader>
 
-      <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {updatedMainMenuItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    isActive={activeItem === item.title}
-                    onClick={() => {
-                      setActiveItem(item.title);
-                      item.action();
-                    }}
-                    tooltip={item.title}
-                    className="w-full text-sidebar-foreground hover:bg-sidebar-accent data-[active=true]:bg-sidebar-accent focus:bg-sidebar-accent"
-                  >
-                    <item.icon />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {additionalMenuItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    isActive={activeItem === item.title}
-                    onClick={() => setActiveItem(item.title)}
-                    tooltip={item.title}
-                    className="w-full text-sidebar-foreground hover:bg-sidebar-accent data-[active=true]:bg-sidebar-accent focus:bg-sidebar-accent"
-                  >
-                    <item.icon />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-        <SidebarGroup className="group-data-[collapsible=icon]:hidden">
-          <SidebarGroupLabel className="text-sidebar-foreground/60 text-xs font-medium px-2 py-1">
-            Chats
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {isLoading ? (
-                <SidebarMenuItem>
-                  <div className="px-2 py-1 text-sm text-sidebar-foreground/60">
-                    Loading chats...
-                  </div>
-                </SidebarMenuItem>
-              ) : chats.length === 0 ? (
-                <SidebarMenuItem>
-                  <div className="px-2 py-1 text-sm text-sidebar-foreground/60">
-                    No chats yet
-                  </div>
-                </SidebarMenuItem>
-              ) : (
-                chats.map((chat) => (
-                  <SidebarMenuItem key={chat._id}>
+      <SidebarContent className="flex flex-col">
+        <div className="flex-shrink-0">
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {updatedMainMenuItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton
-                      isActive={activeItem === `chat-${chat._id}`}
-                      onClick={() => handleChatClick(chat)}
-                      className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent data-[active=true]:bg-sidebar-accent p-2 focus:bg-sidebar-accent"
+                      isActive={activeItem === item.title}
+                      onClick={() => {
+                        setActiveItem(item.title);
+                        item.action();
+                      }}
+                      tooltip={item.title}
+                      className="w-full text-sidebar-foreground hover:bg-sidebar-accent data-[active=true]:bg-sidebar-accent focus:bg-sidebar-accent"
                     >
-                      <span className="text-sm truncate w-full text-left">
-                        {chat.title}
-                      </span>
+                      <item.icon />
+                      <span>{item.title}</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
-                ))
-              )}
-            </SidebarMenu>
-          </SidebarGroupContent>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {additionalMenuItems.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      isActive={activeItem === item.title}
+                      onClick={() => setActiveItem(item.title)}
+                      tooltip={item.title}
+                      className="w-full text-sidebar-foreground hover:bg-sidebar-accent data-[active=true]:bg-sidebar-accent focus:bg-sidebar-accent"
+                    >
+                      <item.icon />
+                      <span>{item.title}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        </div>
+        
+        <SidebarGroup className="group-data-[collapsible=icon]:hidden flex-grow flex flex-col">
+          <SidebarGroupLabel className="text-sidebar-foreground/60 text-xs font-medium px-2 py-1 flex-shrink-0">
+            Chats
+          </SidebarGroupLabel>
+          <div className="overflow-y-auto h-full">
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {isLoading ? (
+                  <SidebarMenuItem>
+                    <div className="px-2 py-1 text-sm text-sidebar-foreground/60">
+                      Loading chats...
+                    </div>
+                  </SidebarMenuItem>
+                ) : chats.length === 0 ? (
+                  <SidebarMenuItem>
+                    <div className="px-2 py-1 text-sm text-sidebar-foreground/60">
+                      No chats yet
+                    </div>
+                  </SidebarMenuItem>
+                ) : (
+                  chats.map((chat) => (
+                    <SidebarMenuItem key={chat._id}>
+                      <SidebarMenuButton
+                        isActive={activeItem === `chat-${chat._id}`}
+                        onClick={() => handleChatClick(chat)}
+                        className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent data-[active=true]:bg-sidebar-accent p-2 focus:bg-sidebar-accent"
+                      >
+                        <span className="text-sm truncate w-full text-left">
+                          {chat.title}
+                        </span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))
+                )}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </div>
         </SidebarGroup>
       </SidebarContent>
 
