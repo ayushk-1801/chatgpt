@@ -75,11 +75,21 @@ export function AppSidebar() {
       setIsLoading(true);
       const response = await fetch('/api/chats');
       if (response.ok) {
-        const chatData = await response.json();
-        setChats(chatData);
+        const result = await response.json();
+        // Handle the new API response format: { success: true, data: { chats: [...] } }
+        if (result.success && result.data && result.data.chats) {
+          setChats(result.data.chats);
+        } else {
+          console.error('Unexpected API response format:', result);
+          setChats([]);
+        }
+      } else {
+        console.error('Failed to fetch chats:', response.status, response.statusText);
+        setChats([]);
       }
     } catch (error) {
       console.error('Error fetching chats:', error);
+      setChats([]);
     } finally {
       setIsLoading(false);
     }
@@ -104,13 +114,11 @@ export function AppSidebar() {
   }, [fetchChats]);
 
   const handleNewChat = () => {
-    // Generate a random slug for new chat
-    const newSlug = `chat-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-    router.push(`/c/${newSlug}`);
+    router.push(`/`);
   };
 
   const handleChatClick = (chat: ChatData) => {
-    setActiveItem(`chat-${chat._id}`);
+    setActiveItem(`${chat._id}`);
     router.push(`/c/${chat.slug}`);
   };
 
@@ -204,7 +212,7 @@ export function AppSidebar() {
                   chats.map((chat) => (
                     <SidebarMenuItem key={chat._id}>
                       <SidebarMenuButton
-                        isActive={activeItem === `chat-${chat._id}`}
+                        isActive={activeItem === `${chat._id}`}
                         onClick={() => handleChatClick(chat)}
                         className="w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent data-[active=true]:bg-sidebar-accent p-2 focus:bg-sidebar-accent"
                       >
@@ -233,9 +241,7 @@ export function AppSidebar() {
               <Crown />
               <div className="flex flex-col items-start">
                 <span className="text-sm font-medium">Upgrade plan</span>
-                <span className="text-xs text-sidebar-foreground/60">
-                  More access to the best models
-                </span>
+           
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>

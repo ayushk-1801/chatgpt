@@ -46,6 +46,9 @@ export default function Home() {
             name="prompt" 
             disabled={isSubmitting}
             className={isSubmitting ? "opacity-50 pointer-events-none" : ""}
+            onFileChange={() => {}}
+            onRemoveFile={() => {}}
+            filePreview={null}
           />
         </form>
       </div>

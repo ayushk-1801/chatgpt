@@ -1,52 +1,8 @@
-import mongoose from "mongoose";
+// Legacy database connection file - use new service instead
+import { ensureDbConnection } from '@/services/database';
 
-const MONGODB_URI = process.env.MONGODB_URI;
+// Maintain backward compatibility
+export default ensureDbConnection;
 
-if (!MONGODB_URI) {
-  throw new Error(
-    "Please define the MONGODB_URI environment variable inside .env.local"
-  );
-}
-
-interface MongooseCache {
-    conn: typeof mongoose | null;
-    promise: Promise<typeof mongoose> | null;
-}
-
-declare global {
-  var mongoose: MongooseCache
-}
-
-/**
- * Global is used here to maintain a cached connection across hot reloads
- * in development. This prevents connections from growing exponentially
- * during API Route usage.
- */
-let cached: MongooseCache = global.mongoose;
-
-if (!cached) {
-  cached = global.mongoose = { conn: null, promise: null };
-}
-
-async function dbConnect() {
-  console.log("Connecting to MongoDB", MONGODB_URI);
-  if (cached.conn) {
-    return cached.conn;
-  }
-
-  if (!cached.promise) {
-    const opts = {
-      bufferCommands: false,
-    };
-
-    cached.promise = mongoose.connect(MONGODB_URI!, opts).then((mongoose) => {
-      console.log("Connected to MongoDB", mongoose);
-      return mongoose;
-    });
-  }
-  cached.conn = await cached.promise;
-  console.log("Connected to MongoDB", cached.conn);
-  return cached.conn;
-}
-
-export default dbConnect; 
+// Export the new service for migration
+export { databaseService, ensureDbConnection } from '@/services/database'; 
