@@ -169,13 +169,13 @@ npm start
 - [x] Design pixel-perfect ChatGPT clone layout
 - [x] Match ChatGPT animations, spacing, modals, and scrolling
 - [x] Ensure full mobile responsiveness (Responsive design)
-- [ ] Implement accessibility (ARIA-compliant)
-- [ ] Add message editing (allow users to edit and regenerate messages)
+- [x] Implement accessibility (ARIA-compliant)
+- [x] Add message editing (allow users to edit and regenerate messages)
 
 ### 🔌 Core Chat Functionality (Vercel AI SDK)
 - [x] Integrate Vercel AI SDK for chat responses
 - [x] Implement streaming message responses
-- [ ] Add context window handling for model token limits
+- [x] Add context window handling for model token limits
 
 ### 🧠 Memory / Conversation Context
 - [x] Add memory capability (using `mem()` from Vercel AI SDK)
@@ -191,7 +191,7 @@ npm start
 
 ### API Architecture
 - [x] Set up Next.js API routes as the backend
-- [ ] Manage token limits per model constraints (e.g., GPT-4 Turbo context window)
+- [x] Manage token limits per model constraints (e.g., GPT-4 Turbo context window)
 
 ### File Storage
 - [x] Integrate Cloudinary or Uploadcare for file storage

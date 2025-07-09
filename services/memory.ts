@@ -3,6 +3,12 @@ import { config } from '@/config';
 import { MemoryServiceError } from '@/lib/errors';
 import { MemoryEntry, MemorySearchOptions, AIMessage } from '@/types';
 
+// Minimal message structure accepted by mem0
+type MemoryClientMessage = {
+  role: 'user' | 'assistant';
+  content: string;
+};
+
 class MemoryService {
   private memory: MemoryClient;
 
@@ -19,7 +25,7 @@ class MemoryService {
         limit: options.limit || config.ai.memory.searchLimit,
       };
 
-      const relevantMemories = await this.memory.search(query, searchOptions);
+      const relevantMemories = await this.memory.search(query, searchOptions) as unknown as MemoryEntry[];
       
       return relevantMemories || [];
     } catch (error) {
@@ -29,7 +35,13 @@ class MemoryService {
 
   async addMemories(messages: AIMessage[], userId: string): Promise<void> {
     try {
-      await this.memory.add(messages, { user_id: userId });
+      const formatted: MemoryClientMessage[] = messages
+        .filter(m => m.role === 'user' || m.role === 'assistant')
+        .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+
+      if (formatted.length === 0) return;
+
+      await this.memory.add(formatted, { user_id: userId });
     } catch (error) {
       throw new MemoryServiceError('Failed to add memories', { error, userId });
     }

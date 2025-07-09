@@ -118,4 +118,22 @@ export interface Memory {
   id: string;
   text: string;
   timestamp: Date;
+}
+
+// Memory-related types specifically for the `MemoryService`
+export interface MemoryEntry {
+  id: string;
+  /** The textual memory content */
+  memory: string;
+  /** Optional relevance score returned by the memory service */
+  score?: number;
+  /** Creation timestamp */
+  createdAt?: Date;
+}
+
+export interface MemorySearchOptions {
+  /** The id of the user whose memories are being queried */
+  userId: string;
+  /** Maximum number of memories to return */
+  limit?: number;
 } 

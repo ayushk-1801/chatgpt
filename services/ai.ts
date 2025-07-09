@@ -114,7 +114,7 @@ class AIService {
                 chatId,
                 role: 'assistant',
                 content: result.text,
-                aiModel: 'gpt-4o-mini-responses',
+                model: 'gpt-4o-mini-responses',
               });
               
               await chatService.updateChatTimestamp(chatId);
@@ -151,7 +151,7 @@ class AIService {
                 chatId,
                 role: 'assistant',
                 content: result.text,
-                aiModel: model,
+                model: model,
               });
               
               await chatService.updateChatTimestamp(chatId);
@@ -207,7 +207,7 @@ class AIService {
           chatId: options.chatId,
           role: 'assistant',
           content: `${IMAGE_GENERATION.PREFIX}${dataUrl}${IMAGE_GENERATION.SUFFIX}`,
-          aiModel: IMAGE_GENERATION.MODEL_NAME,
+          model: IMAGE_GENERATION.MODEL_NAME,
         });
         
         await chatService.updateChatTimestamp(options.chatId);
