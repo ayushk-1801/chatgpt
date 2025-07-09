@@ -73,6 +73,11 @@ export const DB_COLLECTIONS = {
 export const AI_MODELS = {
   GPT_4O: 'gpt-4o',
   GPT_4O_MINI: 'gpt-4o-mini',
+  GPT_41: 'gpt-4.1',
+  GPT_41_MINI: 'gpt-4.1-mini',
+  GPT_41_NANO: 'gpt-4.1-nano',
+  GPT_o3: 'o3',
+  GPT_o4_MINI: 'o4-mini',
   DALL_E_3: 'dall-e-3',
 } as const;
 

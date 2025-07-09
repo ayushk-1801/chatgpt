@@ -10,8 +10,8 @@ interface ChatMessagesProps {
   isHistoryLoading: boolean; // For the initial load
   onRate: (messageId: string, rating: 'good' | 'bad') => void;
   onCopy: (messageId: string, content: string) => void;
-  onEdit: (messageIndex: number) => void;
-  onRegenerate: (messageIndex: number) => void;
+  onEdit: (messageIndex: number, newContent: string) => void;
+  onRegenerate: (messageIndex: number, toolChoice?: string) => void;
   ratings: Record<string, 'good' | 'bad'>;
   copiedMessageId: string | null;
 }
@@ -63,8 +63,8 @@ export function ChatMessages({
                 isLoading={isLoading}
                 onRate={(rating) => onRate(message.id, rating)}
                 onCopy={() => onCopy(message.id, message.content)}
-                onEdit={() => onEdit(index)}
-                onRegenerate={() => onRegenerate(index)}
+                onEdit={(newContent) => onEdit(index, newContent)}
+                onRegenerate={(toolChoice) => onRegenerate(index, toolChoice)}
                 rating={ratings[message.id] || null}
                 isCopied={copiedMessageId === message.id}
               />

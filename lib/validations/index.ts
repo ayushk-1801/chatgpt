@@ -12,6 +12,12 @@ export const chatRequestSchema = z.object({
   messages: z.array(messageSchema).min(1),
   chatId: z.string().min(1),
   model: z.string().optional().default(AI_MODELS.GPT_4O),
+  toolChoice: z
+    .object({
+      type: z.string().optional(),
+      name: z.string(),
+    })
+    .optional(),
 });
 
 // Chat creation validation

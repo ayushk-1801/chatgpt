@@ -80,6 +80,7 @@ export default function ChatPage() {
   const [filePreview, setFilePreview] = useState<FilePreview | null>(null);
   const [messageRatings, setMessageRatings] = useState<Record<string, "good" | "bad">>({});
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [selectedTool, setSelectedTool] = useState<string | null>(null);
 
   // Handle initial message from sessionStorage
   useEffect(() => {
@@ -130,21 +131,74 @@ export default function ChatPage() {
     setMessageRatings((prev) => ({ ...prev, [messageId]: rating }));
   };
 
-  const handleEditUserMessage = (messageIndex: number) => {
-    // This logic needs to be re-implemented or moved to a modal/editing component
-    console.log("Editing message at index:", messageIndex);
-  };
+  const handleEditUserMessage = async (messageIndex: number, newContent: string) => {
+    try {
+      const messageToEdit = messages[messageIndex];
+      if (!messageToEdit) return;
 
-  const handleRegenerateAssistant = async (assistantIndex: number) => {
-    const lastUserMessage = messages[assistantIndex -1];
-    if (lastUserMessage?.role === 'user') {
-      const newMessages = messages.slice(0, assistantIndex);
-      setMessages(newMessages);
+      // Update the message in the database
+      const response = await fetch(`/api/chats/${slug}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messageId: messageToEdit.id,
+          newContent,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to edit message');
+      }
+
+      // Delete all messages after the edited message
+      await fetch(`/api/chats/${slug}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messageId: messageToEdit.id,
+        }),
+      });
+
+      // Update UI: remove messages after the edited one and update the edited message
+      const updatedMessages = messages.slice(0, messageIndex + 1);
+      updatedMessages[messageIndex] = {
+        ...messageToEdit,
+        content: newContent,
+      };
+      
+      setMessages(updatedMessages);
+
+      // Trigger regeneration by sending the edited message
       await append({
-        content: lastUserMessage.content,
+        content: newContent,
         role: "user",
       });
+    } catch (error) {
+      console.error('Failed to edit message:', error);
     }
+  };
+
+  const handleRegenerateAssistant = async (assistantIndex: number, toolChoice?: string) => {
+    const lastUserMessageIndex = assistantIndex - 1;
+    const lastUserMessage = messages[lastUserMessageIndex];
+    if (!lastUserMessage || lastUserMessage.role !== 'user') return;
+
+    // Remove both the last user message and the assistant message we are regenerating
+    const newMessages = messages.slice(0, lastUserMessageIndex);
+    setMessages(newMessages);
+
+    const options: any = {};
+    if (toolChoice) {
+      options.body = { toolChoice: { type: 'tool', name: toolChoice } };
+    }
+
+    await append(
+      {
+        content: lastUserMessage.content,
+        role: 'user',
+      },
+      options,
+    );
   };
 
   const onSubmit = async (e: React.FormEvent) => {
@@ -156,8 +210,15 @@ export default function ChatPage() {
       return fileList.files;
     })() : undefined;
     if (input.trim() || attachments) {
-      await append({ content: input, role: "user" }, { experimental_attachments: attachments });
+      const options: any = { experimental_attachments: attachments };
+      if (selectedTool) {
+        // Pass the toolChoice instruction to backend
+        options.body = { toolChoice: { type: "tool", name: selectedTool } };
+      }
+      await append({ content: input, role: "user" }, options);
     }
+    // Reset selected tool after sending
+    setSelectedTool(null);
     setInput("");
     handleRemoveFile();
   };
@@ -189,6 +250,8 @@ export default function ChatPage() {
                 onFileChange={handleFileChange}
                 onRemoveFile={handleRemoveFile}
                 filePreview={filePreview}
+                selectedTool={selectedTool}
+                onSelectedToolChange={setSelectedTool}
               />
             </form>
             <div className="text-center mt-2">

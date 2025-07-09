@@ -7,6 +7,7 @@ import { useState } from "react";
 export default function Home() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const generateChatId = () => {
     // Generate a UUID for the chat ID
@@ -16,20 +17,48 @@ export default function Home() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setError(null);
     
     const formData = new FormData(e.currentTarget);
     const prompt = formData.get('prompt') as string;
     
     if (prompt?.trim()) {
-      // Store the initial message in sessionStorage to be picked up by the chat page
-      sessionStorage.setItem('initialMessage', prompt.trim());
-      
-      // Generate a new chat ID and redirect to the chat page
-      const chatId = generateChatId();
-      router.push(`/c/${chatId}`);
+      try {
+        const chatId = generateChatId();
+        
+        // Create the chat first
+        const response = await fetch('/api/chats', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ chatId, initialMessage: prompt.trim() }),
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.message || 'Failed to create chat');
+        }
+
+        const result = await response.json();
+        const newChatSlug = result.data.chat.slug;
+
+        // Store the initial message in sessionStorage to be picked up by the chat page
+        sessionStorage.setItem('initialMessage', prompt.trim());
+
+        router.push(`/c/${newChatSlug}`);
+
+      } catch (err: unknown) {
+        if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError("An unexpected error occurred.");
+        }
+        setIsSubmitting(false);
+      }
+    } else {
+      setIsSubmitting(false);
     }
-    
-    setIsSubmitting(false);
   };
 
   return (
@@ -50,6 +79,7 @@ export default function Home() {
             onRemoveFile={() => {}}
             filePreview={null}
           />
+          {error && <p className="text-red-500 text-sm mt-2 text-center">{error}</p>}
         </form>
       </div>
     </div>

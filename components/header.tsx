@@ -24,6 +24,13 @@ import {
 } from "lucide-react";
 import { Button } from "./ui/button";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "./ui/dialog";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -41,7 +48,7 @@ import {
 } from "./ui/tooltip";
 import { mainModels, moreModels } from "@/lib/models";
 import { useModel } from "@/hooks/use-model";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { SettingsDialog } from "./settings-dialog";
 
 function CustomUserProfile() {
@@ -129,7 +136,33 @@ function CustomUserProfile() {
 export function Header() {
   const { selectedModel, setSelectedModel } = useModel();
   const pathname = usePathname();
+  const router = useRouter();
   const isChatPage = pathname?.startsWith('/c/');
+
+  const [isDeleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
+  const [isDeleting, setIsDeleting] = React.useState(false);
+  const [chatTitle, setChatTitle] = React.useState<string | null>(null);
+
+  // Fetch chat title when on chat page to display in dialog
+  React.useEffect(() => {
+    if (!isChatPage) {
+      setChatTitle(null);
+      return;
+    }
+    const slug = pathname?.split('/')[2];
+    if (!slug) return;
+
+    fetch(`/api/chats/${slug}`)
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed');
+        return res.json();
+      })
+      .then((data) => {
+        const title = data?.data?.chat?.title || data?.chat?.title;
+        if (title) setChatTitle(title);
+      })
+      .catch(() => {});
+  }, [pathname, isChatPage]);
 
   const handleModelSelect = (modelId: string) => {
     setSelectedModel(modelId);
@@ -146,9 +179,31 @@ export function Header() {
     console.log('Archive chat');
   };
 
-  const handleDelete = () => {
-    // Implement delete functionality
-    console.log('Delete chat');
+  const openDeleteDialog = () => {
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (!isChatPage) return;
+    const slug = pathname?.split('/')[2];
+    if (!slug) return;
+
+    setIsDeleting(true);
+
+    fetch(`/api/chats/${slug}/delete`, { method: 'DELETE' })
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed to delete chat');
+        router.push('/');
+        window.dispatchEvent(new CustomEvent('chat-deleted'));
+      })
+      .catch((err) => {
+        console.error(err);
+        alert('Failed to delete chat. Please try again.');
+      })
+      .finally(() => {
+        setIsDeleting(false);
+        setDeleteDialogOpen(false);
+      });
   };
 
   const allModels = [...mainModels, ...moreModels];
@@ -305,7 +360,7 @@ export function Header() {
                   </DropdownMenuItem>
                     <DropdownMenuItem
                     className="rounded-md hover:bg-red-100 dark:hover:bg-red-900/30 p-2 cursor-pointer transition-colors text-sm text-neutral-700 dark:text-neutral-200 hover:text-red-500 dark:hover:text-red-300"
-                    onClick={handleDelete}
+                    onClick={openDeleteDialog}
                     >
                     <Trash2 className="w-4 h-4 mr-2 group-hover:text-red-500 dark:group-hover:text-red-300" />
                     <span>Delete</span>
@@ -379,6 +434,28 @@ export function Header() {
           )}
         </div>
       </TooltipProvider>
+
+      <Dialog open={isDeleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="bg-[#1f1f1f] text-white rounded-xl sm:max-w-md p-5">
+          <DialogHeader className="mb-1">
+            <DialogTitle className="text-lg font-semibold">Delete chat?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm mb-1">
+            This will delete <span className="font-semibold">{chatTitle ?? 'this chat'}.</span>
+          </p>
+          <p className="text-sm text-muted-foreground mb-3">
+            Visit <a href="/settings" className="underline">settings</a> to delete any memories saved during this chat.
+          </p>
+          <DialogFooter className="pt-1">
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={confirmDelete} disabled={isDeleting}>
+              {isDeleting ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </header>
   );
 }

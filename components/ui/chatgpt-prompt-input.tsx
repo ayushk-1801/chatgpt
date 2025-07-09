@@ -37,7 +37,13 @@ const TelescopeIcon = (props: React.SVGProps<SVGSVGElement>) => ( <svg viewBox="
 const LightbulbIcon = (props: React.SVGProps<SVGSVGElement>) => ( <svg viewBox="0 0 24 24" fill="none" {...props}> <path d="M12 7C9.23858 7 7 9.23858 7 12C7 13.3613 7.54402 14.5955 8.42651 15.4972C8.77025 15.8484 9.05281 16.2663 9.14923 16.7482L9.67833 19.3924C9.86537 20.3272 10.6862 21 11.6395 21H12.3605C13.3138 21 14.1346 20.3272 14.3217 19.3924L14.8508 16.7482C14.9472 16.2663 15.2297 15.8484 15.5735 15.4972C16.456 14.5955 17 13.3613 17 12C17 9.23858 14.7614 7 12 7Z" stroke="currentColor" strokeWidth="2"/> <path d="M12 4V3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/> <path d="M18 6L19 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/> <path d="M20 12H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/> <path d="M4 12H3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/> <path d="M5 5L6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/> <path d="M10 17H14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/> </svg> );
 const MicIcon = (props: React.SVGProps<SVGSVGElement>) => ( <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" {...props}> <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path> <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path> <line x1="12" y1="19" x2="12" y2="23"></line> </svg> );
 
-const toolsList = [ { id: 'createImage', name: 'Create an image', shortName: 'Image', icon: PaintBrushIcon }, { id: 'searchWeb', name: 'Search the web', shortName: 'Search', icon: GlobeIcon }, { id: 'writeCode', name: 'Write or code', shortName: 'Write', icon: PencilIcon }, { id: 'deepResearch', name: 'Run deep research', shortName: 'Deep Search', icon: TelescopeIcon, extra: '5 left' }];
+// Tool IDs must match the backend definitions in AIService.createAITools()
+const toolsList = [
+  { id: 'generateImage', name: 'Create an image', shortName: 'Image', icon: PaintBrushIcon },
+  { id: 'web_search', name: 'Search the web', shortName: 'Search', icon: GlobeIcon },
+  { id: 'writeCode', name: 'Write or code', shortName: 'Write', icon: PencilIcon },
+  { id: 'deepResearch', name: 'Run deep research', shortName: 'Deep Search', icon: TelescopeIcon, extra: '5 left' },
+];
 
 // --- The Final, Self-Contained PromptBox Component ---
 interface PromptBoxProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {
@@ -45,15 +51,17 @@ interface PromptBoxProps extends React.TextareaHTMLAttributes<HTMLTextAreaElemen
   onFileChange: (file: File) => void;
   onRemoveFile: () => void;
   filePreview: { url: string; type: string, name: string, uploadStatus: 'uploading' | 'success' | 'error' } | null;
+  selectedTool: string | null;
+  onSelectedToolChange: (toolId: string | null) => void;
 }
 
 export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
-  ({ className, name, value: controlledValue, onChange, onFileChange, onRemoveFile, filePreview, ...props }, ref) => {
+  ({ className, name, value: controlledValue, onChange, onFileChange, onRemoveFile, filePreview, selectedTool, onSelectedToolChange, ...props }, ref) => {
     // ... all state and handlers are unchanged ...
     const internalTextareaRef = React.useRef<HTMLTextAreaElement>(null);
     const fileInputRef = React.useRef<HTMLInputElement>(null);
     const [internalValue, setInternalValue] = React.useState("");
-    const [selectedTool, setSelectedTool] = React.useState<string | null>(null);
+    // selectedTool state managed by parent component
     const [isPopoverOpen, setIsPopoverOpen] = React.useState(false);
     const [isImageDialogOpen, setIsImageDialogOpen] = React.useState(false);
     
@@ -102,7 +110,7 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
     const ActiveToolIcon = activeTool?.icon;
 
     return (
-      <div className={cn("mx-2 flex flex-col rounded-[28px] p-2 shadow-sm transition-colors bg-white border border-background dark:bg-[#303030] dark:border-transparent cursor-text", className)}>
+      <div className={cn("mx-2 md:mx-0 flex flex-col rounded-[28px] p-2 shadow-sm transition-colors bg-white border border-background dark:bg-[#303030] dark:border-transparent cursor-text", className)}>
         <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" />
         
         {filePreview && (
@@ -183,7 +191,7 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
                 </Tooltip>
                 <PopoverContent side="bottom" align="start">
                   <div className="flex flex-col gap-1">
-                    {toolsList.map(tool => ( <button key={tool.id} type="button" onClick={() => { setSelectedTool(tool.id); setIsPopoverOpen(false); }} className="flex w-full items-center gap-2 rounded-md p-2 text-left text-sm hover:bg-accent dark:hover:bg-[#515151]"> <tool.icon className="h-4 w-4" /> <span>{tool.name}</span> {tool.extra && <span className="ml-auto text-xs text-muted-foreground dark:text-gray-400">{tool.extra}</span>} </button> ))}
+                    {toolsList.map(tool => ( <button key={tool.id} type="button" onClick={() => { onSelectedToolChange(tool.id); setIsPopoverOpen(false); }} className="flex w-full items-center gap-2 rounded-md p-2 text-left text-sm hover:bg-accent dark:hover:bg-[#515151]"> <tool.icon className="h-4 w-4" /> <span>{tool.name}</span> {tool.extra && <span className="ml-auto text-xs text-muted-foreground dark:text-gray-400">{tool.extra}</span>} </button> ))}
                   </div>
                 </PopoverContent>
               </Popover>
@@ -191,7 +199,7 @@ export const PromptBox = React.forwardRef<HTMLTextAreaElement, PromptBoxProps>(
               {activeTool && (
                 <>
                   <div className="h-4 w-px bg-border dark:bg-gray-600" />
-                  <button type="button" onClick={() => setSelectedTool(null)} className="flex h-8 items-center gap-2 rounded-full px-2 text-sm dark:hover:bg-[#3b4045] hover:bg-accent cursor-pointer dark:text-[#99ceff] text-[#2294ff] transition-colors flex-row items-center justify-center">
+                  <button type="button" onClick={() => onSelectedToolChange(null)} className="flex h-8 items-center gap-2 rounded-full px-2 text-sm dark:hover:bg-[#3b4045] hover:bg-accent cursor-pointer dark:text-[#99ceff] text-[#2294ff] transition-colors flex-row items-center justify-center">
                     {ActiveToolIcon && <ActiveToolIcon className="h-4 w-4" />}
                     {activeTool.shortName}
                     <XIcon className="h-4 w-4" />

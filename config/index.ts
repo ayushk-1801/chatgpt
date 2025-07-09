@@ -26,7 +26,7 @@ export const env = validateEnv();
 
 export const config = {
   app: {
-    name: 'ChatGPT Clone',
+    name: 'ChatGPT',
     version: '1.0.0',
     env: env.NODE_ENV,
   },
