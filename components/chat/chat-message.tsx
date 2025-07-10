@@ -15,6 +15,7 @@ import {
   X,
   Save,
   Globe,
+  File as FileIcon,
 } from 'lucide-react';
 import {
   Tooltip,
@@ -27,6 +28,7 @@ import { Button } from '@/components/ui/button';
 import { MessageFormatter } from '@/components/ui/message-formatter';
 import { type Message } from '@ai-sdk/react';
 import Image from 'next/image';
+import { MessageAttachment as Attachment } from '@/types';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -41,12 +43,7 @@ import {
 import { mainModels, moreModels } from '@/lib/models';
 import { useModel } from '@/hooks/use-model';
 
-interface Attachment {
-  url: string;
-  name?: string;
-  contentType?: string;
-}
-
+// Attachment type is imported from shared types
 // Define a more specific type for message ratings
 type MessageRating = 'good' | 'bad' | null;
 
@@ -192,19 +189,46 @@ export function ChatMessage({
       return null;
     }
 
-    return attachments
-      .filter((attachment: Attachment) => attachment.contentType?.startsWith('image/'))
-      .map((attachment: Attachment, index: number) => (
-        <div key={`${message.id}-${index}`} className="mb-2">
-          <Image
-            src={attachment.url}
-            width={300}
-            height={300}
-            alt={attachment.name ?? `attachment-${index}`}
-            className="rounded-sm max-w-xs object-contain"
-          />
-        </div>
-      ));
+    return attachments.map((attachment: Attachment, index: number) => {
+      const key = `${message.id}-${index}`;
+
+      // Image preview
+      if (attachment.contentType?.startsWith('image/') && attachment.url) {
+        return (
+          <div key={key} className="mb-2">
+            <Image
+              src={attachment.url}
+              width={300}
+              height={300}
+              alt={attachment.name ?? `attachment-${index}`}
+              className="rounded-sm max-w-xs object-contain"
+            />
+          </div>
+        );
+      }
+
+      // PDF preview – replicate prompt box style
+      if (attachment.contentType?.startsWith('application/pdf')) {
+        return (
+          <div key={key} className="mb-2 flex items-center gap-2 p-2 rounded-md bg-muted/20 dark:bg-neutral-800/30 w-fit">
+            {attachment.url ? (
+              <a href={attachment.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
+                <FileIcon className="h-6 w-6 text-muted-foreground" />
+                <span className="text-sm truncate max-w-[200px]">{attachment.name || 'document.pdf'}</span>
+              </a>
+            ) : (
+              <div className="flex items-center gap-2">
+                <FileIcon className="h-6 w-6 text-muted-foreground" />
+                <span className="text-sm truncate max-w-[200px]">{attachment.name || 'document.pdf'}</span>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      // Fallback – ignore unsupported types for now
+      return null;
+    });
   };
 
   const renderToolInvocations = () => {

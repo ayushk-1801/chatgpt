@@ -41,7 +41,7 @@ class ChatService {
 
       const messages = await Message.find({ chatId: chat._id })
         .sort({ createdAt: 1 })
-        .select('role content originalContent isEdited editHistory createdAt')
+        .select('role content attachments originalContent isEdited editHistory createdAt')
         .lean() as unknown as MessageType[];
       
       return { chat, messages };
@@ -127,6 +127,7 @@ class ChatService {
         chatId: options.chatId,
         role: options.role,
         content: options.content,
+        attachments: options.attachments,
         model: options.model,
       });
       

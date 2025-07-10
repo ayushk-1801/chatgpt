@@ -1,7 +1,6 @@
 import { chatController } from '@/controllers/chat';
-import { config } from '@/config';
 
-// Allow streaming responses up to configured duration
-export const maxDuration = config.api.maxDuration;
+// Allow streaming responses up to configured duration (300 seconds)
+export const maxDuration = 300;
 
 export const POST = chatController.handleChatCompletion; 

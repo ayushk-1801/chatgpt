@@ -1,7 +1,6 @@
 import { HTTP_STATUS, ERROR_CODES } from '@/lib/constants';
-import { ApiError } from '@/types';
 
-export class AppError extends Error implements ApiError {
+export class AppError extends Error {
   public readonly statusCode: number;
   public readonly code: string;
   public readonly details?: any;

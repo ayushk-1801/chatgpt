@@ -37,9 +37,11 @@ export interface MessageEditEntry {
 
 // Attachment interface
 export interface MessageAttachment {
-  url: string;
+  url?: string; // optional because newly uploaded local files may not have a remote URL yet
   name?: string;
   contentType?: string;
+  // optional buffer method when running on server side with File
+  buffer?: () => Promise<ArrayBuffer>;
 }
 
 // Message types
@@ -47,6 +49,7 @@ export interface ChatMessage extends BaseEntity {
   chatId: string;
   role: 'user' | 'assistant' | 'system' | 'tool';
   content: string;
+  attachments?: MessageAttachment[];
   originalContent?: string;
   isEdited?: boolean;
   editHistory?: MessageEditEntry[];
@@ -67,6 +70,7 @@ export interface SaveMessageOptions {
   chatId: string;
   role: 'user' | 'assistant' | 'system' | 'tool';
   content: string;
+  attachments?: MessageAttachment[];
   model?: string;
 }
 

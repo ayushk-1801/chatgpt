@@ -268,7 +268,7 @@ function SidebarTrigger({
         onClick={() => {
           toggleSidebar()
         }}
-        {...(props as React.ComponentProps<"div">)}
+        {...(props as any)}
       >
         <Image
           src="/sidebar.svg"

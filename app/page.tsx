@@ -8,6 +8,7 @@ export default function Home() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedTool, setSelectedTool] = useState<string | null>(null);
 
   const generateChatId = () => {
     // Generate a UUID for the chat ID
@@ -78,6 +79,8 @@ export default function Home() {
             onFileChange={() => {}}
             onRemoveFile={() => {}}
             filePreview={null}
+            selectedTool={selectedTool}
+            onSelectedToolChange={setSelectedTool}
           />
           {error && <p className="text-red-500 text-sm mt-2 text-center">{error}</p>}
         </form>

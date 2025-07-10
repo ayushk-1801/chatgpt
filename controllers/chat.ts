@@ -121,6 +121,7 @@ class ChatController {
         chatId: chat._id.toString(),
         role: 'user',
         content: latestUserMessage.content,
+        attachments: latestUserMessage.attachments,
       });
     }
 
@@ -140,7 +141,8 @@ class ChatController {
       id: `msg-${index}`,
       role: msg.role,
       content: msg.content,
-      attachments: undefined,
+      // Preserve attachments (if any) so AI service can process images & PDFs
+      attachments: msg.attachments,
       toolInvocations: undefined,
     }));
 

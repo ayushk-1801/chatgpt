@@ -12,14 +12,34 @@ import { AIServiceError } from '@/lib/errors';
 import { 
   AIMessage, 
   ImageGenerationResult, 
-  GenerateImageOptions 
+  GenerateImageOptions,
+  MessageAttachment 
 } from '@/types';
 import { AI_MODELS, DEFAULTS, IMAGE_GENERATION } from '@/lib/constants';
 
-// Define Attachment type locally as it's not exported from ai/react
-interface Attachment {
-  contentType?: string;
-  buffer: () => Promise<ArrayBuffer>;
+// MessageAttachment type re-used for runtime checks (importing from shared types)
+
+// Helper to convert Attachment (File or remote URL) to Buffer for AI SDK
+async function attachmentToBuffer(attachment: MessageAttachment): Promise<Buffer | null> {
+  try {
+    // If the attachment includes a buffer() function (File from FormData)
+    const potentialBufferFn = (attachment as unknown as { buffer?: () => Promise<ArrayBuffer> }).buffer;
+    if (typeof potentialBufferFn === 'function') {
+      const arr = await potentialBufferFn.call(attachment);
+      return Buffer.from(arr);
+    }
+
+    // Fallback to fetch the file from its URL
+    if (attachment.url) {
+      const res = await fetch(attachment.url);
+      if (!res.ok) return null;
+      const arr = await res.arrayBuffer();
+      return Buffer.from(arr);
+    }
+  } catch (err) {
+    console.warn('Failed to fetch attachment buffer', err);
+  }
+  return null;
 }
 
 class AIService {
@@ -44,30 +64,38 @@ class AIService {
 
       const coreMessages: CoreMessage[] = await Promise.all(
         trimmedMessages.map(async (message: AIMessage): Promise<CoreMessage> => {
-          if (message.role === 'user' && message.attachments) {
-            const imageAttachments = message.attachments.filter(
-              (attachment: Attachment) => attachment.contentType?.startsWith('image/')
-            );
+          if (message.role === 'user' && message.attachments && message.attachments.length > 0) {
+            const content: (
+              | { type: 'text'; text: string }
+              | { type: 'image'; image: Buffer | URL | string }
+              | { type: 'file'; data: Buffer; mimeType: string }
+            )[] = [{ type: 'text', text: message.content }];
 
-            if (imageAttachments.length > 0) {
-              const content: (
-                | { type: 'text'; text: string }
-                | { type: 'image'; image: Buffer | URL | string }
-              )[] = [{ type: 'text', text: message.content }];
-              
-              for (const attachment of imageAttachments) {
-                const imageBuffer = Buffer.from(await attachment.buffer());
-                content.push({
-                  type: 'image',
-                  image: imageBuffer,
-                });
+            // Iterate over each attachment and push appropriate content blocks
+            for (const attachment of message.attachments as MessageAttachment[]) {
+              if (!attachment.contentType) continue;
+
+              // Handle images
+              if (attachment.contentType.startsWith('image/')) {
+                const imgData = await attachmentToBuffer(attachment);
+                if (imgData) {
+                  content.push({ type: 'image', image: imgData });
+                }
               }
 
-              return {
-                role: 'user',
-                content,
-              };
+              // Handle PDFs
+              if (attachment.contentType === 'application/pdf') {
+                const pdfData = await attachmentToBuffer(attachment);
+                if (pdfData) {
+                  content.push({ type: 'file', data: pdfData, mimeType: 'application/pdf' });
+                }
+              }
             }
+
+            return {
+              role: 'user',
+              content,
+            };
           }
           
           const { role, content, toolInvocations } = message;
@@ -133,7 +161,12 @@ class AIService {
           },
         });
       } else {
-        // Use regular model with tools for non-search requests
+        // Determine if reasoningEffort should be set
+        const reasoningModels = ['o3', 'o3-mini', 'o4', 'o4-mini'];
+        const providerOptions = reasoningModels.some((m) => model.startsWith(m))
+          ? { openai: { reasoningEffort: 'low' as const } }
+          : undefined;
+
         result = streamText({
           model: openai(model),
           messages: messagesWithSystem,
@@ -144,6 +177,7 @@ class AIService {
               : undefined,
           maxTokens: config.ai.openai.maxTokens,
           temperature: config.ai.openai.temperature,
+          providerOptions,
           onFinish: async (result: { text: string }) => {
             if (chatId && result.text && result.text.trim() !== '') {
               const { chatService } = await import('./chat');

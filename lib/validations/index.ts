@@ -5,6 +5,16 @@ import { VALIDATION, AI_MODELS } from '@/lib/constants';
 export const messageSchema = z.object({
   role: z.enum(['user', 'assistant', 'system']),
   content: z.string().min(1).max(VALIDATION.MESSAGE_MAX_LENGTH),
+  // Allow optional attachments array to support images, PDFs, etc.
+  attachments: z
+    .array(
+      z.object({
+        url: z.string().optional(),
+        name: z.string().optional(),
+        contentType: z.string().optional(),
+      })
+    )
+    .optional(),
 });
 
 // Chat request validation
@@ -42,7 +52,7 @@ export const uploadFileSchema = z.object({
     (file) => [
       ...VALIDATION.SUPPORTED_IMAGE_TYPES,
       ...VALIDATION.SUPPORTED_DOCUMENT_TYPES,
-    ].includes(file.type),
+    ].includes(file.type as any),
     'Unsupported file type'
   ),
 });

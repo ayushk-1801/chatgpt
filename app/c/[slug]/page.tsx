@@ -105,9 +105,22 @@ export default function ChatPage() {
       url: localUrl,
       type: file.type,
       name: file.name,
-      uploadStatus: "success",
+      uploadStatus: "uploading",
       file: file,
     });
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      if (!res.ok) throw new Error("Upload failed");
+      const { data } = await res.json();
+
+      setFilePreview((prev) => prev ? { ...prev, uploadStatus: "success", publicUrl: data.url } : null);
+    } catch (err) {
+      console.error("File upload error", err);
+      setFilePreview((prev) => prev ? { ...prev, uploadStatus: "error" } : null);
+    }
   };
 
   const handleRemoveFile = () => {
@@ -204,18 +217,31 @@ export default function ChatPage() {
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() && !filePreview) return;
-    const attachments = filePreview?.file ? (() => {
-      const fileList = new DataTransfer();
-      fileList.items.add(filePreview.file);
-      return fileList.files;
-    })() : undefined;
-    if (input.trim() || attachments) {
-      const options: any = { experimental_attachments: attachments };
+    if (filePreview && filePreview.uploadStatus !== 'success') {
+      // Wait until upload finishes
+      return;
+    }
+    const hasText = input.trim().length > 0;
+    // Build local attachment metadata so UI can instantly display it
+    const attachmentMeta = filePreview && filePreview.publicUrl
+      ? [{
+          url: filePreview.publicUrl,
+          name: filePreview.name,
+          contentType: filePreview.type,
+        }]
+      : undefined;
+
+    if (hasText || attachmentMeta) {
+      const options: any = {};
       if (selectedTool) {
         // Pass the toolChoice instruction to backend
         options.body = { toolChoice: { type: "tool", name: selectedTool } };
       }
-      await append({ content: input, role: "user" }, options);
+
+      await append(
+        { content: input, role: "user", ...(attachmentMeta ? { attachments: attachmentMeta } : {}) } as any,
+        options,
+      );
     }
     // Reset selected tool after sending
     setSelectedTool(null);
