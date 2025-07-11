@@ -233,20 +233,34 @@ class AIService {
       });
 
       const dataUrl = `data:${image.mimeType || IMAGE_GENERATION.DEFAULT_MIME_TYPE};base64,${image.base64}`;
-      
-      // Save image as separate assistant message for persistence
+
+      // Attempt to upload the generated image to Cloudinary so we can persist a lightweight URL
+      let cloudinaryUrl: string | null = null;
+      try {
+        const { default: cloudinary } = await import('@/lib/cloudinary');
+        const uploadResult = await cloudinary.uploader.upload(dataUrl, {
+          resource_type: 'image',
+          folder: 'chatgpt-generated',
+        });
+        cloudinaryUrl = uploadResult.secure_url;
+      } catch (uploadErr) {
+        console.warn('Failed to upload generated image to Cloudinary, falling back to data URL:', uploadErr);
+      }
+
+      // Save image as separate assistant message for persistence. Prefer Cloudinary URL, fall back to data URL.
       if (options.chatId) {
         const { chatService } = await import('./chat');
         await chatService.saveMessage({
           chatId: options.chatId,
           role: 'assistant',
-          content: `${IMAGE_GENERATION.PREFIX}${dataUrl}${IMAGE_GENERATION.SUFFIX}`,
+          content: `${IMAGE_GENERATION.PREFIX}${(cloudinaryUrl || dataUrl)}${IMAGE_GENERATION.SUFFIX}`,
           model: IMAGE_GENERATION.MODEL_NAME,
         });
         
         await chatService.updateChatTimestamp(options.chatId);
       }
 
+      // Keep returning base64 so the client can instantly preview the image while streaming
       return { 
         image: image.base64, 
         prompt: options.prompt 

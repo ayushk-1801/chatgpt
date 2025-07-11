@@ -118,6 +118,15 @@ export function ChatMessage({
     setIsEditing(false);
   };
 
+  // Detect special image message format: [image:URL]
+  const imagePrefix = '[image:';
+  const imageSuffix = ']';
+  const trimmedContent = (content || '').trim();
+  const isImageMessage = trimmedContent.startsWith(imagePrefix) && trimmedContent.endsWith(imageSuffix);
+  const extractedImageUrl = isImageMessage
+    ? trimmedContent.slice(imagePrefix.length, -imageSuffix.length)
+    : null;
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
@@ -313,6 +322,21 @@ export function ChatMessage({
   };
 
   const renderContent = () => {
+    // Render generated image messages
+    if (isAssistant && isImageMessage && extractedImageUrl) {
+      return (
+        <div className="py-3">
+          <Image
+            src={extractedImageUrl}
+            width={300}
+            height={300}
+            alt="Generated image"
+            className="rounded-sm max-w-xs object-contain"
+          />
+        </div>
+      );
+    }
+
     if (isEditing && isUser) {
       return (
         <div className="w-full py-3">
