@@ -24,11 +24,9 @@ class ChatController {
       throw new ValidationError('Failed to create or find chat');
     }
     
-    await chatService.saveMessage({
-      chatId: chat._id.toString(),
-      role: 'user',
-      content: initialMessage,
-    });
+    // Do not save the initial user message here.
+    // The chat page will append the first user message once the user is redirected,
+    // allowing the AI response to be streamed in real-time without duplicating messages.
     
     return createSuccessResponse({ chat });
   });
