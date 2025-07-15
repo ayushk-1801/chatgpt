@@ -44,8 +44,11 @@ export default function Home() {
         const result = await response.json();
         const newChatSlug = result.data.chat.slug;
 
-        // Store the initial message in sessionStorage to be picked up by the chat page
+        // Store the initial message and selected tool in sessionStorage to be picked up by the chat page
         sessionStorage.setItem('initialMessage', prompt.trim());
+        if (selectedTool) {
+          sessionStorage.setItem('selectedTool', selectedTool);
+        }
 
         router.push(`/c/${newChatSlug}`);
 

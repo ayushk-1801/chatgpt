@@ -118,6 +118,17 @@ class AIService {
           '\nYou have access to an external web search tool called "web_search_preview". ' +
           'Before generating the final answer, you MUST invoke this tool at least once to gather fresh information. ' +
           'After receiving the tool response, craft a comprehensive answer for the user.';
+      } else if (toolChoice === 'writeCode') {
+        finalSystemPrompt +=
+          '\nYou are an expert software developer. Focus on writing clean, efficient, and well-documented code. ' +
+          'Use the writeCode tool to structure your response and provide detailed explanations.';
+      } else if (toolChoice === 'deepResearch') {
+        finalSystemPrompt +=
+          '\nYou are a research specialist. Conduct thorough analysis and provide comprehensive insights. ' +
+          'Use the deepResearch tool to structure your research approach and findings.';
+      } else if (toolChoice === 'generateImage') {
+        finalSystemPrompt +=
+          '\nYou can generate images using the generateImage tool. When requested, create detailed and creative prompts for image generation.';
       }
 
       // Use Responses API when web search tool is requested
@@ -172,7 +183,9 @@ class AIService {
           messages: messagesWithSystem,
           tools,
           toolChoice:
-            toolChoice === 'generateImage'
+            toolChoice === 'generateImage' || 
+            toolChoice === 'writeCode' || 
+            toolChoice === 'deepResearch'
               ? { type: 'tool', toolName: toolChoice }
               : undefined,
           maxTokens: config.ai.openai.maxTokens,
@@ -283,6 +296,40 @@ class AIService {
           }
           
           return await this.generateImage({ prompt, chatId });
+        },
+      }),
+      writeCode: tool({
+        description: 'Write, review, or debug code in various programming languages',
+        parameters: z.object({
+          language: z.string().describe('The programming language (e.g., javascript, python, typescript)'),
+          task: z.string().describe('The coding task or problem to solve'),
+          code: z.string().optional().describe('Existing code to review or debug (optional)'),
+        }),
+        execute: async ({ language, task, code }) => {
+          // This tool enhances the system prompt for coding tasks
+          return {
+            language: language || 'javascript',
+            task: task || 'general coding',
+            code: code || '',
+            guidance: `I'll help you with ${task || 'coding'} in ${language || 'javascript'}. ${code ? 'I\'ll review and improve the provided code.' : 'I\'ll write clean, well-documented code for you.'}`
+          };
+        },
+      }),
+      deepResearch: tool({
+        description: 'Conduct comprehensive research on a topic using advanced analysis',
+        parameters: z.object({
+          topic: z.string().describe('The research topic or question'),
+          depth: z.enum(['basic', 'detailed', 'comprehensive']).describe('The depth of research required'),
+          sources: z.array(z.string()).optional().describe('Specific sources or domains to focus on'),
+        }),
+        execute: async ({ topic, depth, sources }) => {
+          // This tool enhances the system prompt for research tasks
+          return {
+            topic: topic || 'general research',
+            depth: depth || 'basic',
+            sources: sources || [],
+            guidance: `I'll conduct ${depth || 'basic'} research on "${topic || 'the specified topic'}". ${sources?.length ? `Focusing on: ${sources.join(', ')}` : 'I\'ll analyze multiple perspectives and provide comprehensive insights.'}`
+          };
         },
       }),
     } as const;

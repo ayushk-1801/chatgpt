@@ -82,13 +82,28 @@ export default function ChatPage() {
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [selectedTool, setSelectedTool] = useState<string | null>(null);
 
-  // Handle initial message from sessionStorage
+  // Handle initial message and tool selection from sessionStorage
   useEffect(() => {
     const initialMessage = sessionStorage.getItem("initialMessage");
+    const initialTool = sessionStorage.getItem("selectedTool");
+    
     if (initialMessage && messages.length === 0 && !isHistoryLoading) {
       sessionStorage.removeItem("initialMessage");
+      sessionStorage.removeItem("selectedTool");
       initialMessageRef.current = initialMessage;
-      append({ content: initialMessage, role: "user" });
+      
+      // Set the initial tool selection if it exists
+      if (initialTool) {
+        setSelectedTool(initialTool);
+      }
+      
+      // Prepare options for tool choice if tool was selected
+      const options: any = {};
+      if (initialTool) {
+        options.body = { toolChoice: { type: "tool", name: initialTool } };
+      }
+      
+      append({ content: initialMessage, role: "user" }, options);
     }
   }, [messages.length, isHistoryLoading, append, slug]);
 
@@ -203,6 +218,8 @@ export default function ChatPage() {
     const options: any = {};
     if (toolChoice) {
       options.body = { toolChoice: { type: 'tool', name: toolChoice } };
+      // Also update the UI to show the selected tool
+      setSelectedTool(toolChoice);
     }
 
     await append(
