@@ -18,6 +18,7 @@ interface FilePreview {
   publicUrl?: string;
   dataUrl?: string;
   file?: File;
+  attachmentId?: string;
 }
 
 export default function ChatPage() {
@@ -131,7 +132,7 @@ export default function ChatPage() {
       if (!res.ok) throw new Error("Upload failed");
       const { data } = await res.json();
 
-      setFilePreview((prev) => prev ? { ...prev, uploadStatus: "success", publicUrl: data.url } : null);
+      setFilePreview((prev) => prev ? { ...prev, uploadStatus: "success", publicUrl: data.url, attachmentId: data.attachmentId } : null);
     } catch (err) {
       console.error("File upload error", err);
       setFilePreview((prev) => prev ? { ...prev, uploadStatus: "error" } : null);
@@ -253,6 +254,14 @@ export default function ChatPage() {
       if (selectedTool) {
         // Pass the toolChoice instruction to backend
         options.body = { toolChoice: { type: "tool", name: selectedTool } };
+      }
+
+      // Include attachment IDs in the request body for the backend
+      if (filePreview?.attachmentId) {
+        options.body = {
+          ...options.body,
+          attachments: [filePreview.attachmentId]
+        };
       }
 
       await append(

@@ -1,5 +1,6 @@
 import Chat from '@/lib/models/Chat';
 import Message from '@/lib/models/Message';
+import MediaAttachment from '@/lib/models/MediaAttachment';
 import { 
   Chat as ChatType, 
   ChatMessage as MessageType, 
@@ -41,10 +42,37 @@ class ChatService {
 
       const messages = await Message.find({ chatId: chat._id })
         .sort({ createdAt: 1 })
+        .populate({
+          path: 'attachments.attachmentId',
+          model: 'MediaAttachment',
+          select: 'originalName mimeType mediaType secureUrl cloudinaryId fileSize'
+        })
         .select('role content attachments originalContent isEdited editHistory createdAt')
         .lean() as unknown as MessageType[];
       
-      return { chat, messages };
+      // Transform attachments to the expected frontend format
+      const transformedMessages = messages.map(message => ({
+        ...message,
+        attachments: message.attachments?.map((att: any) => {
+          if (att.attachmentId) {
+            // New format with MediaAttachment reference
+            return {
+              url: att.attachmentId.secureUrl,
+              name: att.attachmentId.originalName,
+              contentType: att.attachmentId.mimeType,
+            };
+          } else {
+            // Legacy format (backward compatibility)
+            return {
+              url: att.url,
+              name: att.name,
+              contentType: att.contentType,
+            };
+          }
+        }) || []
+      }));
+      
+      return { chat, messages: transformedMessages };
     } catch (error) {
       if (error instanceof NotFoundError) {
         throw error;

@@ -28,6 +28,8 @@ export const chatRequestSchema = z.object({
       name: z.string(),
     })
     .optional(),
+  // Array of attachment IDs (MediaAttachment document IDs)
+  attachments: z.array(z.string()).optional(),
 });
 
 // Chat creation validation

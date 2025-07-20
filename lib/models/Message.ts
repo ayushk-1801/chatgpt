@@ -9,19 +9,22 @@ const messageSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['user', 'assistant'],
+    enum: ['user', 'assistant', 'system', 'tool'],
     required: true,
   },
   content: {
     type: String,
     required: true,
   },
+  // Store references to MediaAttachment documents
   attachments: [
     {
-      url: String,
-      name: String,
-      contentType: String,
-    },
+      attachmentId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'MediaAttachment',
+        required: true,
+      },
+    }
   ],
   originalContent: {
     type: String,
@@ -41,6 +44,16 @@ const messageSchema = new mongoose.Schema({
   model: {
     type: String,
     required: false,
+  },
+  generationMetadata: {
+    model: String,
+    promptTokens: Number,
+    completionTokens: Number,
+    totalTokens: Number,
+    temperature: Number,
+    maxTokens: Number,
+    finishReason: String,
+    responseTime: Number,
   },
   createdAt: {
     type: Date,

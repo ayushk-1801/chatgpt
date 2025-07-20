@@ -35,8 +35,27 @@ export interface MessageEditEntry {
   editedAt: Date;
 }
 
-// Attachment interface
+// MediaAttachment interface for database documents
+export interface MediaAttachment {
+  _id: string | Types.ObjectId;
+  originalName: string;
+  mimeType: string;
+  mediaType: 'image' | 'pdf' | 'document' | 'video' | 'audio';
+  secureUrl: string;
+  cloudinaryId: string;
+  fileSize: number;
+  userId?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// Attachment interface for messages (references to MediaAttachment)
 export interface MessageAttachment {
+  attachmentId: string | Types.ObjectId;
+}
+
+// Legacy attachment interface for backward compatibility
+export interface LegacyMessageAttachment {
   url?: string; // optional because newly uploaded local files may not have a remote URL yet
   name?: string;
   contentType?: string;
@@ -53,7 +72,17 @@ export interface ChatMessage extends BaseEntity {
   originalContent?: string;
   isEdited?: boolean;
   editHistory?: MessageEditEntry[];
-  aiModel?: string;
+  model?: string;
+  generationMetadata?: {
+    model?: string;
+    promptTokens?: number;
+    completionTokens?: number;
+    totalTokens?: number;
+    temperature?: number;
+    maxTokens?: number;
+    finishReason?: string;
+    responseTime?: number;
+  };
   createdAt: Date;
 }
 
@@ -72,6 +101,16 @@ export interface SaveMessageOptions {
   content: string;
   attachments?: MessageAttachment[];
   model?: string;
+  generationMetadata?: {
+    model?: string;
+    promptTokens?: number;
+    completionTokens?: number;
+    totalTokens?: number;
+    temperature?: number;
+    maxTokens?: number;
+    finishReason?: string;
+    responseTime?: number;
+  };
 }
 
 export interface EditMessageOptions {
@@ -122,6 +161,15 @@ export interface Memory {
   id: string;
   text: string;
   timestamp: Date;
+}
+
+// Upload-related types
+export interface UploadResponse {
+  url: string;
+  dataUrl: string;
+  public_id: string;
+  original_name: string;
+  attachmentId?: string; // ID of the MediaAttachment document
 }
 
 // Memory-related types specifically for the `MemoryService`

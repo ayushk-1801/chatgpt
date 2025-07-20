@@ -9,6 +9,11 @@ interface DatabaseMessage {
   content: string;
   createdAt: string;
   model?: string;
+  attachments?: {
+    url?: string;
+    name?: string;
+    contentType?: string;
+  }[];
 }
 
 // In-memory cache to avoid hitting the API repeatedly for the same chat
@@ -57,6 +62,7 @@ export function useChatHistory(slug: string, setMessages: (messages: Message[]) 
           content: msg.content,
           createdAt: new Date(msg.createdAt),
           model: msg.model,
+          attachments: msg.attachments || [],
         }));
 
         if (!didCancel) {

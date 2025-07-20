@@ -99,7 +99,7 @@ class ChatController {
   handleChatCompletion = withErrorHandling(async (req: NextRequest) => {
     const userId = await requireAuth();
     const body = await req.json();
-    const { messages, chatId, model, toolChoice } = validateChatRequest(body);
+    const { messages, chatId, model, toolChoice, attachments } = validateChatRequest(body);
 
     if (!chatId) {
       throw new ValidationError(ERROR_MESSAGES.CHAT_ID_REQUIRED);
@@ -115,11 +115,16 @@ class ChatController {
     // Save the latest user message to database
     const latestUserMessage = messages[messages.length - 1];
     if (latestUserMessage?.role === 'user') {
+      // Convert attachment IDs to the format expected by the Message schema
+      const messageAttachments = attachments?.map((attachmentId: string) => ({
+        attachmentId: attachmentId
+      })) || [];
+
       await chatService.saveMessage({
         chatId: chat._id.toString(),
         role: 'user',
         content: latestUserMessage.content,
-        attachments: latestUserMessage.attachments,
+        attachments: messageAttachments,
       });
     }
 
@@ -134,8 +139,32 @@ class ChatController {
       systemPrompt += memoriesForPrompt;
     }
 
+    // Process attachments for the latest user message
+    let processedMessages = messages;
+    if (attachments && attachments.length > 0 && latestUserMessage?.role === 'user') {
+      // Import MediaAttachment to get attachment details
+      const { default: MediaAttachment } = await import('@/lib/models/MediaAttachment');
+      
+      // Get attachment documents
+      const attachmentDocs = await MediaAttachment.find({
+        _id: { $in: attachments }
+      });
+
+      // Update the latest user message with proper attachment format for AI
+      const lastIndex = messages.length - 1;
+      processedMessages = [...messages];
+      processedMessages[lastIndex] = {
+        ...latestUserMessage,
+        attachments: attachmentDocs.map(doc => ({
+          url: doc.secureUrl,
+          name: doc.originalName,
+          contentType: doc.mimeType,
+        }))
+      };
+    }
+
     // Convert messages to AI format
-    const aiMessages = messages.map((msg, index) => ({
+    const aiMessages = processedMessages.map((msg, index) => ({
       id: `msg-${index}`,
       role: msg.role,
       content: msg.content,

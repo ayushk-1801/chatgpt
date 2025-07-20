@@ -3,10 +3,13 @@ import { Readable } from 'stream';
 import { UploadError } from '@/lib/errors';
 import { UploadResponse } from '@/types';
 import { VALIDATION } from '@/lib/constants';
+import MediaAttachment, { MediaType } from '@/lib/models/MediaAttachment';
+import { ensureDbConnection } from './database';
 
 class UploadService {
   async uploadFile(file: File): Promise<UploadResponse> {
     try {
+      await ensureDbConnection();
       this.validateFile(file);
 
       const buffer = Buffer.from(await file.arrayBuffer());
@@ -34,11 +37,38 @@ class UploadService {
         Readable.from(buffer).pipe(uploadStream);
       });
 
+      // Determine media type based on mime type
+      let mediaType: MediaType;
+      if (file.type.startsWith('image/')) {
+        mediaType = MediaType.IMAGE;
+      } else if (file.type === 'application/pdf') {
+        mediaType = MediaType.PDF;
+      } else if (file.type.startsWith('video/')) {
+        mediaType = MediaType.VIDEO;
+      } else if (file.type.startsWith('audio/')) {
+        mediaType = MediaType.AUDIO;
+      } else {
+        mediaType = MediaType.DOCUMENT;
+      }
+
+      // Create MediaAttachment document
+      const mediaAttachment = new MediaAttachment({
+        originalName: file.name,
+        mimeType: file.type,
+        mediaType,
+        secureUrl: result.secure_url,
+        cloudinaryId: result.public_id,
+        fileSize: file.size,
+      });
+
+      await mediaAttachment.save();
+
       return {
         url: result.secure_url,
         dataUrl: dataUrl,
         public_id: result.public_id,
         original_name: file.name,
+        attachmentId: mediaAttachment._id.toString(),
       };
     } catch (error) {
       throw new UploadError('Failed to upload file', { error, fileName: file.name });
