@@ -15,14 +15,7 @@ export interface Chat extends BaseEntity {
   slug: string;
 }
 
-export interface ChatDocument extends Document {
-  _id: Types.ObjectId;
-  userId: string;
-  title: string;
-  slug: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
+export interface ChatDocument extends Chat, Document {}
 
 export interface ChatWithMessages {
   chat: ChatDocument | null;
@@ -49,6 +42,8 @@ export interface MediaAttachment {
   updatedAt: Date;
 }
 
+export interface MediaAttachmentDocument extends MediaAttachment, Document {}
+
 // Attachment interface for messages (references to MediaAttachment)
 export interface MessageAttachment {
   attachmentId: string | Types.ObjectId;
@@ -56,6 +51,7 @@ export interface MessageAttachment {
 
 // Legacy attachment interface for backward compatibility
 export interface LegacyMessageAttachment {
+  id?: string; // MediaAttachment ID for editing purposes
   url?: string; // optional because newly uploaded local files may not have a remote URL yet
   name?: string;
   contentType?: string;
@@ -68,7 +64,7 @@ export interface ChatMessage extends BaseEntity {
   chatId: string;
   role: 'user' | 'assistant' | 'system' | 'tool';
   content: string;
-  attachments?: MessageAttachment[];
+  attachments?: LegacyMessageAttachment[];
   originalContent?: string;
   isEdited?: boolean;
   editHistory?: MessageEditEntry[];

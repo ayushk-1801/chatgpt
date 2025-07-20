@@ -1,4 +1,5 @@
-import mongoose from 'mongoose';
+import mongoose, { Model } from 'mongoose';
+import { MediaAttachmentDocument } from '@/types';
 
 export enum MediaType {
   IMAGE = 'image',
@@ -50,4 +51,4 @@ const mediaAttachmentSchema = new mongoose.Schema({
 mediaAttachmentSchema.index({ cloudinaryId: 1 });
 mediaAttachmentSchema.index({ userId: 1, createdAt: -1 });
 
-export default mongoose.models.MediaAttachment || mongoose.model('MediaAttachment', mediaAttachmentSchema); 
+export const MediaAttachment: Model<MediaAttachmentDocument> = mongoose.models.MediaAttachment || mongoose.model<MediaAttachmentDocument>('MediaAttachment', mediaAttachmentSchema); 

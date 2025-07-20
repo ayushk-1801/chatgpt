@@ -10,6 +10,7 @@ interface DatabaseMessage {
   createdAt: string;
   model?: string;
   attachments?: {
+    id?: string;
     url?: string;
     name?: string;
     contentType?: string;

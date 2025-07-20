@@ -165,18 +165,41 @@ export default function ChatPage() {
       const messageToEdit = messages[messageIndex];
       if (!messageToEdit) return;
 
-      // Update the message in the database
+      console.log('Message to edit details:', {
+        messageIndex,
+        messageId: messageToEdit.id,
+        messageIdType: typeof messageToEdit.id,
+        messageIdLength: messageToEdit.id?.length,
+        dbId: (messageToEdit as any).dbId,
+        content: messageToEdit.content?.slice(0, 30) + '...',
+        role: messageToEdit.role
+      });
+
+      // Find the database message by position and content match
+      // This is more reliable than using IDs that might be overridden by useChat
+      const editPayload = {
+        messageIndex: messageIndex,
+        originalContent: messageToEdit.content,
+        newContent,
+        chatSlug: slug
+      };
+      
+      console.log('Editing message with payload:', editPayload);
+      
       const response = await fetch(`/api/chats/${slug}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messageId: messageToEdit.id,
-          newContent,
-        }),
+        body: JSON.stringify(editPayload),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to edit message');
+        const errorText = await response.text();
+        console.error('Edit message error:', {
+          status: response.status,
+          statusText: response.statusText,
+          error: errorText
+        });
+        throw new Error(`Failed to edit message: ${response.status} ${response.statusText} - ${errorText}`);
       }
 
       // Delete all messages after the edited message
@@ -188,20 +211,43 @@ export default function ChatPage() {
         }),
       });
 
-      // Update UI: remove messages after the edited one and update the edited message
-      const updatedMessages = messages.slice(0, messageIndex + 1);
-      updatedMessages[messageIndex] = {
-        ...messageToEdit,
-        content: newContent,
-      };
-      
+      // Remove messages after the edited one from UI
+      const updatedMessages = messages.slice(0, messageIndex);
       setMessages(updatedMessages);
 
-      // Trigger regeneration by sending the edited message
-      await append({
+      // Trigger regeneration by sending the edited message with preserved attachments
+      const messageData: any = {
         content: newContent,
         role: "user",
-      });
+      };
+
+      // Set up options for the backend
+      const options: any = {};
+
+      // Preserve attachments if the original message had them
+      if (messageToEdit.attachments && messageToEdit.attachments.length > 0) {
+        // Include attachments for UI display
+        messageData.attachments = messageToEdit.attachments;
+        
+        // Extract attachment IDs for backend processing
+        const attachmentIds = messageToEdit.attachments
+          .map((att: any) => att.id)
+          .filter(Boolean); // Remove any undefined IDs
+        
+        if (attachmentIds.length > 0) {
+          options.body = {
+            attachments: attachmentIds
+          };
+        }
+        
+        console.log('Preserving attachments during edit:', {
+          uiFormat: messageToEdit.attachments,
+          attachmentIds: attachmentIds
+        });
+      }
+
+      // append() will add the edited message and trigger AI response
+      await append(messageData, options);
     } catch (error) {
       console.error('Failed to edit message:', error);
     }

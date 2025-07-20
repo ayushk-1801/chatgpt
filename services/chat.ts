@@ -1,6 +1,6 @@
-import Chat from '@/lib/models/Chat';
-import Message from '@/lib/models/Message';
-import MediaAttachment from '@/lib/models/MediaAttachment';
+import { Chat } from '@/lib/models/Chat';
+import { Message } from '@/lib/models/Message';
+import { MediaAttachment } from '@/lib/models/MediaAttachment';
 import { 
   Chat as ChatType, 
   ChatMessage as MessageType, 
@@ -10,7 +10,7 @@ import {
   ChatsListResponse,
   ChatDetailsResponse 
 } from '@/types';
-import { DatabaseError, NotFoundError } from '@/lib/errors';
+import { DatabaseError, NotFoundError, ValidationError } from '@/lib/errors';
 import { DEFAULTS } from '@/lib/constants';
 import { ensureDbConnection } from './database';
 
@@ -22,7 +22,7 @@ class ChatService {
       const chats = await Chat.find({ userId })
         .sort({ updatedAt: -1 })
         .select('slug title createdAt updatedAt')
-        .lean() as unknown as ChatType[];
+        .lean<ChatType[]>();
       
       return { chats };
     } catch (error) {
@@ -34,7 +34,7 @@ class ChatService {
     try {
       await ensureDbConnection();
       
-      const chat = await Chat.findOne({ slug, userId }).lean() as unknown as ChatType | null;
+      const chat = await Chat.findOne({ slug, userId }).lean<ChatType>();
       
       if (!chat) {
         throw new NotFoundError('Chat not found');
@@ -42,13 +42,13 @@ class ChatService {
 
       const messages = await Message.find({ chatId: chat._id })
         .sort({ createdAt: 1 })
-        .populate({
+        .populate<{ attachments: { attachmentId: typeof MediaAttachment }[] }>({
           path: 'attachments.attachmentId',
-          model: 'MediaAttachment',
+          model: MediaAttachment,
           select: 'originalName mimeType mediaType secureUrl cloudinaryId fileSize'
         })
         .select('role content attachments originalContent isEdited editHistory createdAt')
-        .lean() as unknown as MessageType[];
+        .lean<MessageType[]>();
       
       // Transform attachments to the expected frontend format
       const transformedMessages = messages.map(message => ({
@@ -57,6 +57,7 @@ class ChatService {
           if (att.attachmentId) {
             // New format with MediaAttachment reference
             return {
+              id: att.attachmentId._id, // Include the attachment ID for editing
               url: att.attachmentId.secureUrl,
               name: att.attachmentId.originalName,
               contentType: att.attachmentId.mimeType,
@@ -141,7 +142,7 @@ class ChatService {
 
   async updateChatTimestamp(chatId: string): Promise<void> {
     try {
-      await Chat.findByIdAndUpdate(chatId, { updatedAt: new Date() });
+      await Chat.findByIdAndUpdate(chatId, { updatedAt: new Date() }).exec();
     } catch (error) {
       throw new DatabaseError('Failed to update chat timestamp', { error, chatId });
     }
@@ -165,6 +166,84 @@ class ChatService {
     }
   }
 
+  async editMessageByPosition(options: {
+    chatSlug: string;
+    messageIndex: number;
+    originalContent: string;
+    newContent: string;
+    userId: string;
+  }): Promise<MessageType> {
+    try {
+      await ensureDbConnection();
+      
+      // First find the chat
+      const chat = await Chat.findOne({ slug: options.chatSlug, userId: options.userId });
+      if (!chat) {
+        throw new NotFoundError('Chat not found');
+      }
+
+      // Get all messages for this chat, ordered by creation time
+      const messages = await Message.find({ chatId: chat._id })
+        .sort({ createdAt: 1 });
+
+      console.log('Found messages for editing:', {
+        totalMessages: messages.length,
+        requestedIndex: options.messageIndex,
+        originalContent: options.originalContent?.slice(0, 50)
+      });
+
+      // Find the message at the specified index
+      if (options.messageIndex >= messages.length || options.messageIndex < 0) {
+        throw new NotFoundError('Message index out of range');
+      }
+
+      const messageToEdit = messages[options.messageIndex];
+      
+      // Verify the content matches (for safety)
+      if (messageToEdit.content !== options.originalContent) {
+        console.error('Content mismatch:', {
+          expected: options.originalContent?.slice(0, 50),
+          actual: messageToEdit.content?.slice(0, 50)
+        });
+        throw new ValidationError('Message content does not match - message may have been modified');
+      }
+
+      console.log('Found message to edit:', {
+        messageId: messageToEdit._id,
+        role: messageToEdit.role,
+        originalContent: messageToEdit.content?.slice(0, 50)
+      });
+
+      // Store original content if this is the first edit
+      if (!messageToEdit.isEdited) {
+        messageToEdit.originalContent = messageToEdit.content;
+        messageToEdit.isEdited = true;
+        messageToEdit.editHistory = [];
+      }
+
+      // Add current content to edit history
+      messageToEdit.editHistory.push({
+        content: messageToEdit.content,
+        editedAt: new Date(),
+      });
+
+      // Update content
+      messageToEdit.content = options.newContent;
+      
+      await messageToEdit.save();
+      
+      // Update chat timestamp
+      await this.updateChatTimestamp(messageToEdit.chatId.toString());
+      
+      return messageToEdit.toObject();
+    } catch (error) {
+      if (error instanceof NotFoundError || error instanceof ValidationError) {
+        throw error;
+      }
+      throw new DatabaseError('Failed to edit message by position', { error, options });
+    }
+  }
+
   async editMessage(options: EditMessageOptions): Promise<MessageType> {
     try {
       await ensureDbConnection();
@@ -177,6 +256,7 @@ class ChatService {
 
       // Verify the user owns this chat
       const chat = await Chat.findById(message.chatId);
+      
       if (!chat || chat.userId !== options.userId) {
         throw new NotFoundError('Message not found or access denied');
       }
@@ -215,26 +295,26 @@ class ChatService {
     try {
       await ensureDbConnection();
       
-      const message = await Message.findById(messageId);
+      const messageToDelete = await Message.findById(messageId);
       
-      if (!message) {
+      if (!messageToDelete) {
         throw new NotFoundError('Message not found');
       }
 
       // Verify the user owns this chat
-      const chat = await Chat.findById(message.chatId);
+      const chat = await Chat.findById(messageToDelete.chatId);
       if (!chat || chat.userId !== userId) {
         throw new NotFoundError('Message not found or access denied');
       }
 
       // Delete all messages created after this message
       await Message.deleteMany({
-        chatId: message.chatId,
-        createdAt: { $gt: message.createdAt }
+        chatId: messageToDelete.chatId,
+        createdAt: { $gt: messageToDelete.createdAt }
       });
 
       // Update chat timestamp
-      await this.updateChatTimestamp(message.chatId.toString());
+      await this.updateChatTimestamp(messageToDelete.chatId.toString());
     } catch (error) {
       if (error instanceof NotFoundError) {
         throw error;
@@ -274,7 +354,7 @@ class ChatService {
       
       const messages = await Message.find({ chatId })
         .sort({ createdAt: 1 })
-        .lean() as unknown as MessageType[];
+        .lean<MessageType[]>();
       
       return messages;
     } catch (error) {

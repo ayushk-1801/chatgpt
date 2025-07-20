@@ -28,7 +28,7 @@ import { Button } from '@/components/ui/button';
 import { MessageFormatter } from '@/components/ui/message-formatter';
 import { type Message } from '@ai-sdk/react';
 import Image from 'next/image';
-import { MessageAttachment as Attachment } from '@/types';
+import { LegacyMessageAttachment as Attachment } from '@/types';
 import {
   DropdownMenu,
   DropdownMenuTrigger,

@@ -1,4 +1,5 @@
-import mongoose from 'mongoose';
+import mongoose, { Model } from 'mongoose';
+import { ChatDocument } from '@/types';
 
 const chatSchema = new mongoose.Schema({
   userId: {
@@ -30,4 +31,4 @@ const chatSchema = new mongoose.Schema({
 // Index for efficient queries
 chatSchema.index({ userId: 1, createdAt: -1 });
 
-export default mongoose.models.Chat || mongoose.model('Chat', chatSchema); 
+export const Chat: Model<ChatDocument> = mongoose.models.Chat || mongoose.model<ChatDocument>('Chat', chatSchema); 

@@ -3,7 +3,7 @@ import { Readable } from 'stream';
 import { UploadError } from '@/lib/errors';
 import { UploadResponse } from '@/types';
 import { VALIDATION } from '@/lib/constants';
-import MediaAttachment, { MediaType } from '@/lib/models/MediaAttachment';
+import { MediaAttachment, MediaType } from '@/lib/models/MediaAttachment';
 import { ensureDbConnection } from './database';
 
 class UploadService {

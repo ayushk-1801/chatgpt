@@ -1,4 +1,5 @@
-import mongoose from 'mongoose';
+import mongoose, { Model } from 'mongoose';
+import { ChatMessageDocument } from '@/types';
 
 const messageSchema = new mongoose.Schema({
   chatId: {
@@ -66,4 +67,4 @@ const messageSchema = new mongoose.Schema({
 // Index for efficient queries
 messageSchema.index({ chatId: 1, createdAt: 1 });
 
-export default mongoose.models.Message || mongoose.model('Message', messageSchema); 
+export const Message: Model<ChatMessageDocument> = mongoose.models.Message || mongoose.model<ChatMessageDocument>('Message', messageSchema); 

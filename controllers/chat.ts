@@ -51,16 +51,31 @@ class ChatController {
   });
 
   // Edit a message
-  editMessage = withErrorHandling(async (req: NextRequest) => {
+  editMessage = withErrorHandling(async (req: NextRequest, { params }: { params: { slug: string } }) => {
     const userId = await requireAuth();
-    const { messageId, newContent } = await req.json();
+    const { messageIndex, originalContent, newContent, chatSlug } = await req.json();
 
-    if (!messageId || !newContent) {
-      throw new ValidationError('messageId and newContent are required.');
+    console.log('Edit message request:', { 
+      userId, 
+      messageIndex,
+      originalContent: originalContent?.slice(0, 50) + '...',
+      newContent: newContent?.slice(0, 50) + '...',
+      chatSlug
+    });
+
+    if (messageIndex === undefined || !originalContent || !newContent) {
+      console.error('Validation failed:', { 
+        messageIndex: messageIndex !== undefined, 
+        originalContent: !!originalContent,
+        newContent: !!newContent 
+      });
+      throw new ValidationError('messageIndex, originalContent, and newContent are required.');
     }
 
-    const updatedMessage = await chatService.editMessage({
-      messageId,
+    const updatedMessage = await chatService.editMessageByPosition({
+      chatSlug: params.slug,
+      messageIndex,
+      originalContent,
       newContent,
       userId,
     });
@@ -143,7 +158,7 @@ class ChatController {
     let processedMessages = messages;
     if (attachments && attachments.length > 0 && latestUserMessage?.role === 'user') {
       // Import MediaAttachment to get attachment details
-      const { default: MediaAttachment } = await import('@/lib/models/MediaAttachment');
+      const { MediaAttachment } = await import('@/lib/models/MediaAttachment');
       
       // Get attachment documents
       const attachmentDocs = await MediaAttachment.find({
